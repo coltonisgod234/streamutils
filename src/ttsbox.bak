@@ -1,0 +1,181 @@
+"""
+GUI frontend + Commands sending side
+"""
+import sys
+from PyQt5.QtCore import QThread, pyqtSignal, Qt  # type: ignore
+from PyQt5.QtGui import QFont  # type: ignore
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTextEdit, QDialog, QLineEdit, QPushButton, QLabel  # type: ignore
+import emoji
+
+import pytchat
+
+import commands
+
+chat = pytchat.create(video_id="https://www.youtube.com/watch?v=jfKfPfyJRdk")
+
+class ChatWorker(QThread):
+    """
+    Worker QThread for reciving chat messages while the GUI runs
+    """
+    update_signal = pyqtSignal(str)  # Signal to send data back to the main thread
+
+    def __init__(self):
+        super().__init__()
+        self.running = True  # Flag to keep the thread running
+
+    def check_if_chat_alive(self):
+        """
+        Checks if the youtube chat is alive
+        """
+        if chat.is_alive():
+            return True
+        else:
+            return False
+
+    def run(self):
+        """
+        The start method of the thread
+        """
+        # Just make sure the chat is alive first
+        self.update_signal.emit("[ChatWorker] Thread initalized")
+
+        while self.running:
+            QThread.msleep(1000)
+            # self.update_signal.emit(f"Thread is alive")  # Update the main thread
+            for c in chat.get().sync_items():
+                emoji_message = emoji.emojize(c.message)
+                self.update_signal.emit(f"{c.author.name}: {emoji_message}")
+
+                # *******************************************************************
+                # * Add in your commands here, using startswith() to check for them *
+                # *******************************************************************
+                if emoji_message.startswith("/tts"):
+                    commands.tts(emoji_message)
+
+    def stop(self):
+        """
+        Stops the thread
+        """
+        self.running = False  # Set flag to stop the thread
+        self.wait()  # Ensure the thread terminates properly
+
+class MainWindow(QWidget):
+    """
+    The main Frontend window
+    """
+    def __init__(self):
+        super().__init__()
+
+        ## Window attributes
+        self.setWindowTitle("Dave from seattle")
+
+        # No window frame
+        self.setWindowFlag(Qt.FramelessWindowHint)  # Remove window borders
+
+        # Prevent you from clicking on the window, makes it uninteractable
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+        # Makes sure the window is always on top of the desktop
+        self.setWindowFlag(Qt.WindowStaysOnTopHint)
+
+        # Makes the window slightly transparent
+        self.setWindowOpacity(0.7)
+
+        # Window position and size
+        self.setGeometry(10, 10, 400, 180)
+
+
+        # Allows you to hold shift to move the window
+        self.shift_pressed = False
+
+        # Create the chatbox
+        self.chatbox = QTextEdit("[MainWindow] Waiting for ChatWorker thread to initalize...", self)
+
+        ## Chatbox styling
+        self.chatbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)  # Hide the scrollbars
+        self.chatbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        # Set the font to a monospaced one
+        font = QFont("JetBrains Mono", 9, QFont.Normal)
+        self.chatbox.setFont(font)
+
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.chatbox)
+        self.setLayout(self.layout)
+
+        # Create the worker thread and connect its signal to the update_label method
+        self.worker = ChatWorker()
+        self.worker.update_signal.connect(self.append_message)
+
+        # Start the worker thread as soon as the window is created
+        self.worker.start()
+
+    def append_message(self, txt):
+        """
+        Displays the chat message omitted from the ChatWorker thread and scroll to the bottom
+        of the text box
+        """
+        self.chatbox.append(txt)
+
+        # Scroll to the bottom after appending our chat
+        scrollbar = self.chatbox.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())  # Scroll to the maximum (bottom)
+
+    def close_event(self, event):
+        """
+        Stops the worker thread when the frontend is closed
+        allows it to exit safely
+        """
+        # Ensure that the worker thread is stopped when the window is closed
+        self.worker.stop()  # Stop the worker thread
+        event.accept()  # Accept the close event
+
+class PopupDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.submitted_yet = False
+
+        self.setWindowTitle("Enter Stream URL")
+        self.setGeometry(100, 100, 300, 150)  # Set the size and position
+
+        # Create the layout for the dialog
+        layout = QVBoxLayout()
+
+        # Add a label
+        self.label = QLabel("Enter the URL or video ID of the livestream you want.\nThis URL can't be a replay or premire", self)
+        layout.addWidget(self.label)
+
+        # Add a text box (QLineEdit)
+        self.text_box = QLineEdit(self)
+        layout.addWidget(self.text_box)
+
+        # Add a button to close the popup
+        self.submit_button = QPushButton("S U B M I T", self)
+        self.submit_button.clicked.connect(self.on_submit)
+        layout.addWidget(self.submit_button)
+
+        # Set the layout for the dialog
+        self.setLayout(layout)
+
+    def on_submit(self):
+        global chat
+        # Handle the submit action (e.g., print the text entered in the box)
+        entered_text = self.text_box.text()
+        chat = pytchat.create(video_id=entered_text)
+        self.submitted_yet = True
+        self.accept()  # Close the dialog after submission
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = PopupDialog()
+    window.show()
+
+    app.exec_()
+    if window.submitted_yet:
+        window = MainWindow()
+        window.show()
+        sys.exit(app.exec_())
+    
+    else:
+        sys.exit(1)

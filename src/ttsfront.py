@@ -9,11 +9,11 @@ from ttsback import ChatWorker  # Import the backend module
 import argparse
 
 parser = argparse.ArgumentParser(prog="SteamUtils chat overlay")
-parser.add_argument("-X", type=int, help="The X position of the window", required=True)
-parser.add_argument("-Y", type=int, help="The Y position of the window", required=True)
-parser.add_argument("-W", type=int, help="The width of the window", required=True)
-parser.add_argument("-H", type=int, help="The height of the window", required=True)
-parser.add_argument("-O", type=float, help="Opacity", required=True)
+parser.add_argument("-X", type=int, help="The X position of the window", default=0)
+parser.add_argument("-Y", type=int, help="The Y position of the window", default=0)
+parser.add_argument("-W", type=int, help="The width of the window", default=320)
+parser.add_argument("-H", type=int, help="The height of the window", default=180)
+parser.add_argument("-O", type=float, help="Opacity", default=0.7)
 
 parser.add_argument("--title", type=str, help="The title of the window", default="Dave From Seattle")
 

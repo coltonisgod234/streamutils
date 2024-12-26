@@ -1,12 +1,12 @@
 # chat_fetcher.py
 
 import pytchat
-import emoji
+# import emoji
 from PyQt5.QtCore import QThread, pyqtSignal
 import commands
 
 def convert_message(msg: str, c, verbose: bool) -> tuple[str, str]:
-    emoji_message = emoji.emojize(msg)  # Convert emojis from markdown to unicode
+    emoji_message = msg # emoji.emojize(msg)  # Convert emojis from markdown to unicode
 
     if verbose:
         gui_message = f"""

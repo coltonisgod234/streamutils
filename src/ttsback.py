@@ -5,6 +5,22 @@ import emoji
 from PyQt5.QtCore import QThread, pyqtSignal
 import commands
 
+def convert_message(msg: str, c, verbose: bool) -> tuple[str, str]:
+    emoji_message = emoji.emojize(msg)  # Convert emojis from markdown to unicode
+
+    if verbose:
+        gui_message = f"""
+---Msg:  {c.message}
+---Meta: type={c.type} id={c.id}
+---Time: timestamp={c.timestamp} datetime={c.datetime}
+---Auth: authName={c.author.name} authChID={c.author.channelId} authVerif={c.author.isVerified} authOwn={c.author.isChatOwner} authMod?={c.author.isChatModerator} authSp={c.author.isChatSponsor}
+        """
+
+    else:
+        gui_message = f"[{c.author.name}]:  {emoji_message}"  # For the GUI
+
+    return (emoji_message, gui_message)
+
 class ChatWorker(QThread):
     """
     Worker QThread for receiving chat messages while the GUI runs.
@@ -12,9 +28,10 @@ class ChatWorker(QThread):
     """
     update_signal = pyqtSignal(str)  # Signal to send data back to the main thread
 
-    def __init__(self, video_id: str):
+    def __init__(self, video_id: str, flag_verbose_echo: bool):
         super().__init__()
         self.video_id = video_id
+        self.verbose = flag_verbose_echo
         self.chat = pytchat.create(video_id=self.video_id)
         self.running = True  # Flag to keep the thread running
 
@@ -28,16 +45,16 @@ class ChatWorker(QThread):
         """
         Starts the thread and continuously fetches messages from the chat.
         """
-        self.update_signal.emit("Chat app is READY!")
-        while self.running:
-            QThread.msleep(1000)  # Wait for 1 second before fetching new chat messages
-            for c in self.chat.get().sync_items():
-                emoji_message = emoji.emojize(c.message)  # Convert emojis to unicode
-                self.update_signal.emit(f"[{c.author.name}]:  {emoji_message}")  # Send message to GUI
+        self.update_signal.emit("READY!")
 
-                # Check for specific commands
-                if emoji_message.startswith("/tts"):
-                    commands.tts(emoji_message)
+        # While running, we fetch chat messages
+        while self.running:
+            QThread.msleep(100)  # Wait before fetching new chat messages
+            for c in self.chat.get().sync_items():
+                # Process the message
+                msg, formatted_msg = convert_message(c.message, c, self.verbose)
+                self.update_signal.emit(formatted_msg)  # Update the GUI
+                commands.handle_commands(msg)  # Process commands
 
     def stop(self):
         """

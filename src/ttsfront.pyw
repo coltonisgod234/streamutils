@@ -24,6 +24,9 @@ parser.add_argument("-no_scrollbars", action="store_true", help="The QTextEdit h
 
 parser.add_argument("-linkui", action="store_true", help="Opens LinkUI window to chose the livestream")
 
+parser.add_argument("-echo_to_terminal", action="store_true", help="Echos the messages to the terminal")
+parser.add_argument("-v", action="store_true", help="Echoed messages are verbose")
+
 parser.add_argument("video_ID", type=str, help="Video ID to use", default="https://www.youtube.com/watch?v=jfKfPfyJRdk")
 args = parser.parse_args()
 
@@ -75,6 +78,9 @@ class MainWindow(QWidget):
         self.chatbox.append(txt)
         scrollbar = self.chatbox.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+
+        if args.echo_to_terminal:
+            print(txt)
 
     def close_event(self, event):
         """
@@ -129,7 +135,7 @@ if __name__ == "__main__":
         sys.exit(app.exec_())
     
     else:
-        chat_worker = ChatWorker(args.video_ID)
+        chat_worker = ChatWorker(args.video_ID, args.v)
         main_window = MainWindow(chat_worker)
         main_window.show()
         sys.exit(app.exec_())

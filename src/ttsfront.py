@@ -86,7 +86,10 @@ class MainWindow(QWidget):
         """
         Handle window close event. Safely stop the worker thread.
         """
-        self.worker.stop()  # Stop the chat fetching thread
+        self.worker.stop()
+        
+        self.worker.quit()
+        self.worker.wait()  # Wait for the thread to finish
         event.accept()
 
 class PopupDialog(QDialog):
@@ -115,9 +118,8 @@ class PopupDialog(QDialog):
         """
         Handles the submit action. Changes the video URL and restarts chat fetching.
         """
-        entered_text = self.text_box.text()
+        self.chosen_link = self.text_box.text()
         # Create a new ChatWorker instance with the entered video URL
-        self.chat_worker = ChatWorker(video_id=entered_text)  
         self.submitted_yet = True
         self.accept()
 
@@ -130,7 +132,8 @@ if __name__ == "__main__":
         popup_window.show()
         app.exec_()
 
-        main_window = MainWindow(popup_window.chat_worker)
+        chat_worker = ChatWorker(video_id=popup_window.chosen_link, flag_verbose_echo=False)  
+        main_window = MainWindow(chat_worker)
         main_window.show()
         sys.exit(app.exec_())
     
@@ -138,4 +141,4 @@ if __name__ == "__main__":
         chat_worker = ChatWorker(args.video_ID, args.v)
         main_window = MainWindow(chat_worker)
         main_window.show()
-        sys.exit(app.exec_())
+        app.exec_()

@@ -3,17 +3,17 @@
 import pytchat
 # import emoji
 from PyQt5.QtCore import QThread, pyqtSignal
-import commands
+import plugins
 
 def convert_message(msg: str, c, verbose: bool) -> tuple[str, str]:
     emoji_message = msg # emoji.emojize(msg)  # Convert emojis from markdown to unicode
 
     if verbose:
         gui_message = f"""
----Msg:  {c.message}
----Meta: type={c.type} id={c.id}
----Time: timestamp={c.timestamp} datetime={c.datetime}
----Auth: authName={c.author.name} authChID={c.author.channelId} authVerif={c.author.isVerified} authOwn={c.author.isChatOwner} authMod?={c.author.isChatModerator} authSp={c.author.isChatSponsor}
+        ---Msg:  {c.message}
+        ---Meta: type={c.type} id={c.id}
+        ---Time: timestamp={c.timestamp} datetime={c.datetime}
+        ---Auth: authName={c.author.name} authChID={c.author.channelId} authVerif={c.author.isVerified} authOwn={c.author.isChatOwner} authMod?={c.author.isChatModerator} authSp={c.author.isChatSponsor}
         """
 
     else:
@@ -34,6 +34,7 @@ class ChatWorker(QThread):
         self.verbose = flag_verbose_echo
         self.chat = pytchat.create(video_id=self.video_id)
         self.running = True  # Flag to keep the thread running
+        self.plugin_manager = plugins.PluginManager("plugins")  # Manage plugins
 
     def check_if_chat_alive(self):
         """
@@ -45,23 +46,29 @@ class ChatWorker(QThread):
         """
         Starts the thread and continuously fetches messages from the chat.
         """
-        self.update_signal.emit("READY!")
+        # Initalize all plugins
+        self.plugin_manager.load_plugins()
+        self.plugin_manager.initalize_plugins()
 
         # While running, we fetch chat messages
         while self.running:
-            QThread.msleep(100)  # Wait before fetching new chat messages
+            QThread.msleep(250)  # Wait before fetching new chat messages
             for c in self.chat.get().sync_items():
                 # Process the message
                 msg, formatted_msg = convert_message(c.message, c, self.verbose)
                 self.update_signal.emit(formatted_msg)  # Update the GUI
-                commands.handle_commands(msg)  # Process commands
 
+                # Notify plugins
+                for plugin in self.plugin_manager.plugins:
+                    plugin.event_message(c)
+                
     def stop(self):
         """
         Stop the chat fetching thread.
         """
+        self.plugin_manager.unload_plugins()
         self.running = False
-        self.wait()  # Wait for the thread to finish
+        # self.wait()  # Wait for the thread to finish
 
     def set_video_id(self, video_id: str):
         """

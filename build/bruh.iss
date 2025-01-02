@@ -50,14 +50,17 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "D:\streamutils\build\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "D:\streamutils\build\dist\start_app_noconsole.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "D:\streamutils\src\plugins\*"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\streamutils\src\plugins\*"; DestDir: "{app}\plugins"; Flags: ignoreversion
+Source: "D:\streamutils\build\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
-Name: "{group}\{#MyAppLauncher}"; Filename: "{app}\{#MyAppLauncher}"
-Name: "{group}\{cm:UninstallProgram,{#MyAppLauncher}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppLauncher}"; Filename: "{app}\{#MyAppLauncher}"; Tasks: desktopicon
+;Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppLauncher}"; IconFilename: "{app}\icon.ico"
+;Name: "{group}\{cm:UninstallProgram}{#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\icon.ico"
+;Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppLauncher}"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
+;; Desktop
+Name: "{commondesktop}\Streamutils"; Filename: "{app}\start_app_noconsole.bat"; IconFilename: "{app}\icon.ico"
 
-[Run]
-Filename: "{app}\{#MyAppLauncher}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppLauncher, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
+;; Start menu
+Name: "{commonprograms}\Streamutils"; Filename: "{app}\start_app_noconsole.bat"; IconFilename: "{app}\icon.ico"
+Name: "{commonstartmenu}\Streamutils"; Filename: "{app}\start_app_noconsole.bat"; IconFilename: "{app}\icon.ico"

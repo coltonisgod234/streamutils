@@ -36,6 +36,7 @@ class MainWindow(QWidget):
     """
     def __init__(self, chat_worker: ChatWorker):
         super().__init__()
+        self.chosen_link = None
 
         # Window setup
         self.setWindowTitle(args.title)  # Window title
@@ -132,10 +133,11 @@ if __name__ == "__main__":
         popup_window.show()
         app.exec_()
 
-        chat_worker = ChatWorker(video_id=popup_window.chosen_link, flag_verbose_echo=False)  
-        main_window = MainWindow(chat_worker)
-        main_window.show()
-        sys.exit(app.exec_())
+        chat_worker = ChatWorker(video_id=popup_window.chosen_link, flag_verbose_echo=False)
+        if popup_window.chosen_link != None:
+            main_window = MainWindow(chat_worker)
+            main_window.show()
+            sys.exit(app.exec_())
     
     else:
         chat_worker = ChatWorker(args.video_ID, args.v)

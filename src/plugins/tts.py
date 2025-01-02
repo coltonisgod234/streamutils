@@ -1,13 +1,14 @@
-from plugins import PluginInterface  # Assuming PluginInterface is defined in plugin_interface.py
+from plugins import PluginInterface
 import pyttsx3
 
-class ExamplePlugin(PluginInterface):
+class TTSplugin(PluginInterface):
     def event_load(self):
         print("TTS plugin loaded!")
         self.tts_engine = pyttsx3.init()
         self.prefix = "tts"  # Defalt config
 
     def event_message(self, m):
+        print("TTS plugin got a message.")
         # NO SPAM FILTER!
         if m.message.startswith(self.prefix):
             self.tts_engine.say(m.message)
@@ -17,4 +18,5 @@ class ExamplePlugin(PluginInterface):
         del self.tts_engine
 
     def configure(self, config):
+        print(f"TTS plugin configured, config={config}")
         self.prefix = config["prefix"]

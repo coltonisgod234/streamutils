@@ -3,6 +3,7 @@ import sys
 import importlib.util
 import inspect
 from abc import ABC, abstractmethod
+import json
 
 class PluginInterface(ABC):
     @abstractmethod
@@ -19,6 +20,7 @@ class PluginInterface(ABC):
         This method must be implemented by all plugins.
         This method will be called when the application exits
         """
+        pass
 
     @abstractmethod
     def event_message(self, message):
@@ -38,7 +40,7 @@ class PluginInterface(ABC):
 
 class PluginManager:
     def __init__(self, plugin_dir="plugins"):
-        # Get the path of the current file (whether running as a script or compiled executable)
+        # Get the path of the current file
         base_path = os.path.dirname(os.path.abspath(__file__))
         # Set the plugin directory relative to the base path
         self.plugin_dir = os.path.join(base_path, plugin_dir)
@@ -52,6 +54,7 @@ class PluginManager:
 
     def load_plugin(self, filename):
         plugin_name = filename[:-3]  # Remove ".py" extension
+        json_name = f"{plugin_name}.json"  # Find the coresponding JSON
         plugin_path = os.path.join(self.plugin_dir, filename)
         
         spec = importlib.util.spec_from_file_location(plugin_name, plugin_path)
@@ -61,7 +64,14 @@ class PluginManager:
         # Find all classes that implement PluginInterface
         for name, obj in inspect.getmembers(plugin_module):
             if inspect.isclass(obj) and issubclass(obj, PluginInterface) and obj != PluginInterface:
-                self.plugins.append(obj())
+                self.plugins.append(obj())  # Load them
+                self.configure_plugin(json_name, self.plugins[-1])  # Configure this plugin
+
+    def configure_plugin(self, json_filename, plugin):
+        file = f"{self.plugin_dir}/{json_filename}"
+        with open(file, "r") as f:
+            data = json.load(f)
+            plugin.configure(data)
 
     def initalize_plugins(self):
         for plugin in self.plugins:

@@ -47,8 +47,11 @@ class ChatWorker(QThread):
         Starts the thread and continuously fetches messages from the chat.
         """
         # Initalize all plugins
+        self.update_signal.emit("Loading plugins...")
         self.plugin_manager.load_plugins()
+        self.update_signal.emit("Initalizing plugins...")
         self.plugin_manager.initalize_plugins()
+        self.update_signal.emit("Ready to get chat messages.")
 
         # While running, we fetch chat messages
         while self.running:

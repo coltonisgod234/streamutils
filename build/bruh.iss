@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Streamutils"
-#define MyAppVersion "1.0.1 "
+#define MyAppVersion "1.1.2"
 #define MyAppPublisher "Colton Wollinger"
 #define MyAppURL "https://github.com/coltonisgod234/streamutils/"
 #define MyAppExeName "ttsfront.exe"

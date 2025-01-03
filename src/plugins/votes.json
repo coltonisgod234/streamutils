@@ -1,0 +1,8 @@
+{
+    "prefix_new": "!poll",
+    "prefix_vote": "!vote",
+    "option_delimiter": "|",
+    "CREATE_POLL_required_perms": "mod",
+    "VOTE_required_perms": "all",
+    "DELETE_POLL_required_perms": "mod"
+}

@@ -73,9 +73,10 @@ class PluginManager:
             data = json.load(f)
             plugin.configure(data)
 
-    def initalize_plugins(self):
+    def initalize_plugins(self, gui_update_signal):
         for plugin in self.plugins:
             plugin.event_load()
+            plugin.gui_update = gui_update_signal
 
     def unload_plugins(self):
         for plugin in self.plugins:

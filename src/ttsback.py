@@ -50,7 +50,7 @@ class ChatWorker(QThread):
         self.update_signal.emit("Loading plugins...")
         self.plugin_manager.load_plugins()
         self.update_signal.emit("Initalizing plugins...")
-        self.plugin_manager.initalize_plugins()
+        self.plugin_manager.initalize_plugins(self.update_signal)
         self.update_signal.emit("Ready to get chat messages.")
 
         # While running, we fetch chat messages

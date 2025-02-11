@@ -5,30 +5,26 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTextEdit, QDialog, QLineEdit, QPushButton, QLabel
 from ttsback import ChatWorker  # Import the backend module
+import configparser
 
 import argparse
 
 parser = argparse.ArgumentParser(prog="SteamUtils chat overlay")
-parser.add_argument("-X", type=int, help="The X position of the window", default=0)
-parser.add_argument("-Y", type=int, help="The Y position of the window", default=0)
-parser.add_argument("-W", type=int, help="The width of the window", default=320)
-parser.add_argument("-H", type=int, help="The height of the window", default=180)
-parser.add_argument("-O", type=float, help="Opacity", default=0.7)
-
-parser.add_argument("--title", type=str, help="The title of the window", default="Dave From Seattle")
-
-parser.add_argument("-noninteractive", action="store_true", help="The window is uninteractable")
-parser.add_argument("-no_frame", action="store_true", help="The window has no frame")
-parser.add_argument("-always_ontop", action="store_true", help="The window has no frame")
-parser.add_argument("-no_scrollbars", action="store_true", help="The QTextEdit has no scroll bars")
-
-parser.add_argument("-linkui", action="store_true", help="Opens LinkUI window to chose the livestream")
-
-parser.add_argument("-echo_to_terminal", action="store_true", help="Echos the messages to the terminal")
-parser.add_argument("-v", action="store_true", help="Echoed messages are verbose")
-
 parser.add_argument("video_ID", type=str, help="Video ID to use", default="https://www.youtube.com/watch?v=jfKfPfyJRdk")
+parser.add_argument("-C", type=str, help="Config file to use", default="defaultconfig.ini")
+
 args = parser.parse_args()
+
+config = configparser.ConfigParser()
+config.read(args.C)
+
+def config2bool(s):
+    if s in ["yes"]:
+        return True
+    if s in ["no"]:
+        return False
+    else:
+        return None
 
 class MainWindow(QWidget):
     """
@@ -39,27 +35,32 @@ class MainWindow(QWidget):
         self.chosen_link = None
 
         # Window setup
-        self.setWindowTitle(args.title)  # Window title
-        if args.no_frame:
+        self.setWindowTitle(config["Window"]["title"])  # Window title
+        if not config2bool(config["Window"]["frame"]):
             self.setWindowFlag(Qt.FramelessWindowHint)  # No frame
 
-        if args.noninteractive:
+        if not config2bool(config["Window"]["interactive"]):
             self.setAttribute(Qt.WA_TransparentForMouseEvents)  # Noninteractive
 
-        if args.always_ontop:
+        if config2bool(config["Window"]["ontop"]):
             self.setWindowFlag(Qt.WindowStaysOnTopHint)  # Alwaysontop
 
-        self.setWindowOpacity(args.O)  # Opactiy
-        self.setGeometry(args.X, args.Y, args.W, args.H)  # Geometry
+        self.setWindowOpacity(float(config["Window"]["opacity"]))  # Opactiy
+
+        x = int(config["Window"]["x"])
+        y = int(config["Window"]["y"])
+        w = int(config["Window"]["width"])
+        h = int(config["Window"]["height"])
+        self.setGeometry(x, y, w, h)  # Geometry
 
         # Create the chatbox for displaying chat messages
         self.chatbox = QTextEdit("", self)
 
-        if args.no_scrollbars:
+        if not config["Window"]["scrollbars"]:
             self.chatbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.chatbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        font = QFont("monospace", 9, QFont.Normal)
+        font = QFont(config["Window"]["font"], int(config["Window"]["fontsize"]), QFont.Normal)
         self.chatbox.setFont(font)
 
         # Layout setup
@@ -69,7 +70,7 @@ class MainWindow(QWidget):
 
         # Assign the provided chat worker instance and start it
         self.worker = chat_worker
-        self.worker.update_signal.connect(self.append_message)
+        self.worker.signal.connect(self.append_message)
         self.worker.start()  # Start the worker thread to fetch chat
 
     def append_message(self, txt):
@@ -80,7 +81,7 @@ class MainWindow(QWidget):
         scrollbar = self.chatbox.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-        if args.echo_to_terminal:
+        if config2bool(config["Frontend"]["terminal_echo"]):
             print(txt)
 
     def close_event(self, event):
@@ -127,7 +128,7 @@ class PopupDialog(QDialog):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    if args.linkui:
+    if config2bool(config["Startup"]["show_linkui"]):
         # Show the URL input dialog
         popup_window = PopupDialog()
         popup_window.show()
@@ -140,7 +141,7 @@ if __name__ == "__main__":
             sys.exit(app.exec_())
     
     else:
-        chat_worker = ChatWorker(args.video_ID, args.v)
+        chat_worker = ChatWorker(args.video_ID, config)
         main_window = MainWindow(chat_worker)
         main_window.show()
         app.exec_()

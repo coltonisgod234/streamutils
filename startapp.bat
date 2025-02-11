@@ -1,5 +1,5 @@
 @ECHO OFF
 
 cd src
-start pythonw ttsfront.py -X 0 -Y 0 -W 320 -H 180 -O 0.7 -always_ontop -no_frame -noninteractive -no_scrollbars -linkui https://www.youtube.com/watch?v=jfKfPfyJRdk
+start pythonw ttsfront.py -C defaultconfig.ini https://www.youtube.com/watch?v=jfKfPfyJRdk
 exit

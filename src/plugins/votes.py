@@ -1,10 +1,11 @@
-from plugins import PluginInterface
+from pluginsdk import PluginInterface
 
 class VotePlugin(PluginInterface):
     def event_load(self):
         self.options = []
         self.votes = {}
         self.voted = []
+        self.prefix_new = ""
 
         print("Voting plugin is ready")
 
@@ -67,7 +68,7 @@ class VotePlugin(PluginInterface):
                 print("Well that errored, they probably typed it in wrong, just gonna ignore it")
     
     def event_message(self, m):
-        print(self.options, self.votes)
+        # print(self.options, self.votes)
         if m.message.startswith(f"{self.prefix_new}"):
             if self._check_if_auth(m, self.create_poll_perms):
                 self._handle_vote_create(m)
@@ -79,6 +80,9 @@ class VotePlugin(PluginInterface):
         
         if m.message.startswith(f"!endpoll"):
             self._handle_vote_end(m)
+
+    def event_notify(self, source, data):
+        pass
 
     def configure(self, config):
         self.prefix_new = config["prefix_new"]

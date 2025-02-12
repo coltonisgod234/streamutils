@@ -6,9 +6,9 @@ import pluginsdk
 import json
 
 class PluginManager:
-    def __init__(self, plugin_dir="plugins"):
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        self.plugin_dir = os.path.join(base_path, plugin_dir)
+    def __init__(self, plugin_dir="plugins", base_dir=os.path.abspath(__file__)):
+        self.install_dir = base_dir
+        self.plugin_dir = os.path.join(self.install_dir, plugin_dir)
         self.plugins = {}
 
     def load_plugins(self, signal): 
@@ -17,9 +17,9 @@ class PluginManager:
                 # For every file in the plugins directory
                 # Load the corresponding plugin
                 if filename.endswith(".py") and filename != "__init__.py":
-                    # Load the plguin
+                    # Load the plugin
                     self.load_plugin(filename)
-                    signal.emit(f"Loaded {name}")
+                    signal.emit(f"Loaded {filename}")
 
     def load_plugin(self, filename):
         plugin_name = filename[:-3]  # Remove ".py" extension

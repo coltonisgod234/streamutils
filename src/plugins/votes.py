@@ -7,7 +7,7 @@ class VotePlugin(PluginInterface):
         self.voted = []
         self.prefix_new = ""
 
-        print("Voting plugin is ready")
+        self.log(self.LINFO, "Voting plugin is ready")
 
     def _check_if_auth(self, m, required):
         if (m.author.isChatModerator or m.author.isChatOwner) and required == "mod":
@@ -27,7 +27,7 @@ class VotePlugin(PluginInterface):
             return
 
         winning_vote = max(self.votes, key=self.votes.get)
-        print(f"Winning vote: {winning_vote}")
+        self.log(self.LINFO, f"Winning vote: {winning_vote}")
         self.gui_update.emit(f"Winning vote: {winning_vote}")
 
         self.options = None
@@ -38,7 +38,7 @@ class VotePlugin(PluginInterface):
         if not self._check_if_auth(m, self.create_poll_perms):  # Ensure user can create a vote
             return
 
-        print("Creating vote...")
+        self.log(self.LINFO, "Creating vote...")
         options = m.message.replace(f"{self.prefix_new} ", "", 1)  # Formatting
         options = options.split(self.option_delim)  # Split each option
 
@@ -48,32 +48,32 @@ class VotePlugin(PluginInterface):
     def _handle_vote_req(self, m):
         if self.options == None or self.votes == None:
             # There's no active vote!
-            print("No active vote!")
+            self.log(self.LINFO, "No active vote!")
             return
         
         if not self._check_if_auth(m, self.cast_vote_perms):  # Ensure user can vote
             return
 
-        print("Person voted!")
+        self.log(self.LINFO, "Person voted!")
         vote = m.message.replace(f"{self.prefix_vote} ", "", 1)
         
         if m.author.channelId in self.voted:
-            print("Person tried to vote twice!")
+            self.log(self.LINFO, "Person tried to vote twice!")
             return
         else:
             try:
                 self.votes[vote] += 1
                 self.voted.append(m.author.channelId)
             except KeyError:
-                print("Well that errored, they probably typed it in wrong, just gonna ignore it")
+                self.log(self.LINFO, "Well that errored, they probably typed it in wrong, just gonna ignore it")
     
     def event_message(self, m):
-        # print(self.options, self.votes)
+        # self.log(self.LINFO, self.options, self.votes)
         if m.message.startswith(f"{self.prefix_new}"):
             if self._check_if_auth(m, self.create_poll_perms):
                 self._handle_vote_create(m)
             else:
-                print("User tried to create a poll who cannot do so")
+                self.log(self.LINFO, "User tried to create a poll who cannot do so")
 
         if m.message.startswith(f"{self.prefix_vote}"):
             self._handle_vote_req(m)
@@ -91,6 +91,9 @@ class VotePlugin(PluginInterface):
         self.create_poll_perms = config["CREATE_POLL_required_perms"]  # Use "all", "mod" or "owner"
         self.cast_vote_perms = config["VOTE_required_perms"]
         self.delete_poll_perms = config["DELETE_POLL_required_perms"]
+    
+    def event_main(self, time, loop):
+        return
 
     def event_kill(self):
         pass

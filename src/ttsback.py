@@ -15,10 +15,10 @@ def config2bool(s):
     else:
         return None
 
-def convert_message(msg: str, c, verbose: bool) -> tuple[str, str]:
-    emoji_message = emoji.emojize(msg)  # Convert emojis from markdown to unicode
+def convert_message(c, config) -> tuple[str, str]:
+    c.message = emoji.emojize(c.message)  # Sorry
 
-    if verbose:
+    if config2bool(config["Frontend"]["verbose"]):
         gui_message = f"""
         ---Msg:  {c.message}
         ---Meta: type={c.type} id={c.id}
@@ -26,10 +26,13 @@ def convert_message(msg: str, c, verbose: bool) -> tuple[str, str]:
         ---Auth: authName={c.author.name} authChID={c.author.channelId} authVerif={c.author.isVerified} authOwn={c.author.isChatOwner} authMod?={c.author.isChatModerator} authSp={c.author.isChatSponsor}
         """
 
-    else:
-        gui_message = f"[{c.author.name}]:  {emoji_message}"  # For the GUI
+    elif c.type == "superChat":
+        gui_message = config["Frontend.messageTemplates"]["superChat"].format(msg=c)
 
-    return (emoji_message, gui_message)
+    elif c.type == "textMessage":
+        gui_message = config["Frontend.messageTemplates"]["textMessage"].format(msg=c)
+
+    return gui_message
 
 class ChatWorker(QThread):
     """
@@ -45,7 +48,14 @@ class ChatWorker(QThread):
         self.config = config
         self.chat = pytchat.create(video_id=self.video_id)
         self.running = True  # Flag to keep the thread running
-        self.plugin_manager = plugins.PluginManager(config["Plugins"]["directory"])  # Manage plugins
+
+        self.plugin_manager = plugins.PluginManager(
+            plugin_dir=config["Plugins.Paths"]["plugindir"],
+            base_dir=config["Plugins.Paths"]["installdir"]
+        )
+        print("Plugin OK.")
+        self.loop_wait = int(self.config["Backend"]["loop_wait_ns"])
+        self.pluginmain = config2bool(self.config["Plugins"]["enable_pluginmain"])
 
     def check_if_chat_alive(self):
         """
@@ -60,9 +70,8 @@ class ChatWorker(QThread):
         self.plugin_manager.configure_plugins(self.signal)
         self.signal.emit("OK.")
     
-    def startup_verbose(self):
+    def print_config(self):
         # Initalize all plugins
-        self.signal.emit("Streamutils \"Dave From Seattle\" backend init...")
         self.signal.emit(f"Dumped configuration below")
         a = ""
         for section in self.config.sections():
@@ -72,28 +81,18 @@ class ChatWorker(QThread):
             
         self.signal.emit(a)
 
-        self.signal.emit(f"Begining plugin init...")
-
-        self.signal.emit("Loading plugins...")
-        self.plugin_manager.load_plugins(self.signal)
-        self.signal.emit("Initalizing plugins...")
-        self.plugin_manager.initalize_plugins(self.signal)
-        self.signal.emit("Configuring plugins...")
-        self.plugin_manager.configure_plugins(self.signal)
-        self.signal.emit("Ready to get chat messages. OK.")
-
     def plugins_main(self):
         for name, plugin in self.plugin_manager.plugins.items():
             try:
-                plugin.event_main(time.time_ns())
+                plugin.event_main(time.time_ns(), self.loop_wait)
 
             except Exception as e:
                 print(f"{name} error'd but honestly we're just gonna ignore it, {e}")
 
     def message_notify(self, message):
         for name, plugin in self.plugin_manager.plugins.items():
-            try: plugin.event_message(c)
-            except Exception as e: print(f"{name} error'd but honestly it's a plugin who cares, {e}")
+            try: plugin.event_message(message)
+            except Exception as e: print(f"{name} error'd notifying message but honestly it's a plugin who cares, {e}")
 
     def run(self):
         """
@@ -102,15 +101,15 @@ class ChatWorker(QThread):
         self.startup()
         # While running, we fetch chat messages
         while self.running:
-            QThread.usleep(int(self.config["Backend"]["loop_wait_ns"]))
-            if config2bool(self.config["Plugins"]["enable_pluginmain"]): self.plugins_main()
+            QThread.usleep(self.loop_wait)
+            if self.pluginmain: self.plugins_main()
             for c in self.chat.get().sync_items():
                 # Process the message
-                msg, formatted_msg = convert_message(c.message, c, self.verbose)
+                formatted_msg = convert_message(c, self.config)
                 self.signal.emit(formatted_msg)  # Update the GUI
 
                 # Notify plugins
-                self.message_notify(msg)
+                self.message_notify(c)
 
     def stop(self):
         """

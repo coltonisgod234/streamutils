@@ -1,3 +1,0 @@
-You have successfully installed streamutils!
-
-You can write plugins for streamutils in python! Plugins are located in the "plugins folder inside installation folder

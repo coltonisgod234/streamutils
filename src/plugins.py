@@ -6,20 +6,42 @@ import pluginsdk
 import json
 
 class PluginManager:
-    def __init__(self, plugin_dir="plugins", base_dir=os.path.abspath(__file__)):
+    def __init__(self, plugin_dir="plugins", base_dir=os.path.abspath(__file__), signal=None, config=None):
         self.install_dir = base_dir
         self.plugin_dir = os.path.join(self.install_dir, plugin_dir)
         self.plugins = {}
+        self.gui_signal = signal
+        self.config = config
+
+    def is_plugin_enabled(self, plugin_name):
+        if self.config["Plugins.enable"][plugin_name] == "yes":
+            return True
+        else:
+            return False
+    
+    def is_file_plugin(self, filename):
+        if filename.endswith(".py") and filename != "__init__.py":
+            return True
+        else:
+            return False
+    
+    def should_load_plugin(self, filename):
+        return self.is_file_plugin(filename) and self.is_plugin_enabled(filename[:-3])
 
     def load_plugins(self, signal): 
-        if os.path.isdir(self.plugin_dir):
-            for filename in os.listdir(self.plugin_dir):
-                # For every file in the plugins directory
-                # Load the corresponding plugin
-                if filename.endswith(".py") and filename != "__init__.py":
-                    # Load the plugin
-                    self.load_plugin(filename)
-                    signal.emit(f"Loaded {filename}")
+        if not os.path.isdir(self.plugin_dir):
+            return
+        
+        for filename in os.listdir(self.plugin_dir):
+            if self.should_load_plugin(filename):
+                # Load the plugin
+                self.load_plugin(filename)
+
+    def is_plugin_valid(self, obj):
+        if inspect.isclass(obj) and issubclass(obj, pluginsdk.PluginInterface) and obj != pluginsdk.PluginInterface:
+            return True
+        else:
+            return False
 
     def load_plugin(self, filename):
         plugin_name = filename[:-3]  # Remove ".py" extension
@@ -30,19 +52,23 @@ class PluginManager:
         plugin_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(plugin_module)
         
-        # Find all classes that implement PluginInterface
-        for name, obj in inspect.getmembers(plugin_module):
-            if inspect.isclass(obj) and issubclass(obj, pluginsdk.PluginInterface) and obj != pluginsdk.PluginInterface:
+        # Look at only the first member found
+        members =  inspect.getmembers(plugin_module)
+        for name, obj in members:
+            if self.is_plugin_valid(obj):
                 try:
                     o = obj()
                     o.__name__ = plugin_name
                     o.__file__ = plugin_path
                     o.__json__ = json_path
-                    self.plugins[name] = o
+                    o.__signal__ = self.gui_signal
+                    self.plugins[plugin_name] = o
                     #self.plugins[name].event_load()
+                    self.gui_signal.emit(f"Plugin {plugin_name} is OK.")
                 except Exception as e:
                     # Just skip loading it if the plugin errors
-                    print(f"Error loading plugin {name}, unhandled exception: {e}")
+                    print(f"Error loading plugin {plugin_name}, unhandled exception: {e}")
+                    self.gui_signal.emit(f"Error opening plugin {plugin_name}, caught exception: {e}")
                     continue
 
     def configure_plugin(self, json_filename, plugin):

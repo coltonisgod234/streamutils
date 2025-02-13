@@ -78,3 +78,6 @@ class PluginInterface(ABC):
 
     def log(self, severity, message):
         print(f"[{self.__name__: <10}]  {severity:>15}     {message}")
+    
+    def echo(self, message):
+        self.__signal__.emit(f"[PLGUIN | {self.__name__: <10}]   {message}")

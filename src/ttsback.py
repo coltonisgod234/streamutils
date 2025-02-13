@@ -6,6 +6,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 import plugins
 import emoji
 import time
+import os
 
 def config2bool(s):
     if s in ["yes"]:
@@ -31,6 +32,9 @@ def convert_message(c, config) -> tuple[str, str]:
 
     elif c.type == "textMessage":
         gui_message = config["Frontend.messageTemplates"]["textMessage"].format(msg=c)
+    
+    else:
+        gui_message = "Unregognized message type, not textMessage or superChat?"
 
     return gui_message
 
@@ -39,7 +43,7 @@ class ChatWorker(QThread):
     Worker QThread for receiving chat messages while the GUI runs.
     This class fetches messages and processes commands.
     """
-    signal = pyqtSignal(str)  # Signal to send data back to the main thread
+    msg_signal = pyqtSignal(str)  # send messages back to the GUI
 
     def __init__(self, video_id: str, config: dict):
         super().__init__()
@@ -48,10 +52,14 @@ class ChatWorker(QThread):
         self.config = config
         self.chat = pytchat.create(video_id=self.video_id)
         self.running = True  # Flag to keep the thread running
+        try: self.installdir = config["Plugins.Paths"]["installdir"]
+        except KeyError: self.installdir = None
 
         self.plugin_manager = plugins.PluginManager(
             plugin_dir=config["Plugins.Paths"]["plugindir"],
-            base_dir=config["Plugins.Paths"]["installdir"]
+            base_dir=self.installdir if self.installdir is not None else os.path.dirname(__file__),
+            signal=self.msg_signal,
+            config=self.config
         )
         print("Plugin OK.")
         self.loop_wait = int(self.config["Backend"]["loop_wait_ns"])
@@ -65,21 +73,20 @@ class ChatWorker(QThread):
 
     def startup(self):
         # Initalize all plugins
-        self.plugin_manager.load_plugins(self.signal)
-        self.plugin_manager.initalize_plugins(self.signal)
-        self.plugin_manager.configure_plugins(self.signal)
-        self.signal.emit("OK.")
+        self.plugin_manager.load_plugins(self.msg_signal)
+        self.plugin_manager.initalize_plugins(self.msg_signal)
+        self.plugin_manager.configure_plugins(self.msg_signal)
+        self.msg_signal.emit("OK.")
     
     def print_config(self):
-        # Initalize all plugins
-        self.signal.emit(f"Dumped configuration below")
+        self.msg_signal.emit(f"Dumped configuration below")
         a = ""
         for section in self.config.sections():
             a += f"[{section}]  "
             for key, value in self.config.items(section):
                 a += (f"{key}={value};")
             
-        self.signal.emit(a)
+        self.msg_signal.emit(a)
 
     def plugins_main(self):
         for name, plugin in self.plugin_manager.plugins.items():
@@ -106,7 +113,7 @@ class ChatWorker(QThread):
             for c in self.chat.get().sync_items():
                 # Process the message
                 formatted_msg = convert_message(c, self.config)
-                self.signal.emit(formatted_msg)  # Update the GUI
+                self.msg_signal.emit(formatted_msg)  # Update the GUI
 
                 # Notify plugins
                 self.message_notify(c)

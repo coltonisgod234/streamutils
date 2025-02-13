@@ -1,1 +1,0 @@
-Welcome to the streamutils setup wizard, this wizard will guide you through the streamutils setup process.

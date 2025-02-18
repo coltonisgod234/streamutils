@@ -212,7 +212,6 @@ def run_autofetch():
     url = get_user_stream(channelid)
     if url is None:
         run_linkui("Configured user isn't streaming, falling back to linkui")
-        sys.exit(4)
     
     run_nolinkui(url)
 
@@ -222,7 +221,7 @@ if __name__ == "__main__":
     elif config["Startup"]["startup_mode"] == "autofetch":
         run_autofetch()
     elif config["Startup"]["startup_mode"] == "none":
-        run_nolinkui(args.video_id)
+        run_nolinkui(args.video_ID)
     else:
         print("Invalid startup mode. Unsure what to do")
         sys.exit(2)

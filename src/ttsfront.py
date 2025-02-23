@@ -37,6 +37,8 @@ class MainWindow(QWidget):
         super().__init__()
         self.chosen_link = None
 
+        print("Initalized MainWindow QWidget...")
+
         # Window setup
         self.setWindowTitle(config["Window"]["title"])  # Window title
         if not config2bool(config["Window"]["frame"]):
@@ -75,6 +77,7 @@ class MainWindow(QWidget):
         self.worker = chat_worker
 
         # Assign the worker a signal
+        print("Starting chat fetcher...")
         self.worker.msg_signal.connect(self.append_message)
         self.worker.start()  # Start the worker thread to fetch chat
 
@@ -82,6 +85,7 @@ class MainWindow(QWidget):
         """
         Append new chat message to the chatbox and scroll to the bottom.
         """
+        print("New GUI line configured.")
         self.chatbox.append(txt)
         scrollbar = self.chatbox.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
@@ -93,10 +97,15 @@ class MainWindow(QWidget):
         """
         Handle window close event. Safely stop the worker thread.
         """
+        print("got close event, shutting down now.")
+        print("Stopping worker thread...")
         self.worker.stop()
         
         self.worker.quit()
+        print("Waiting for thread to finish...")
         self.worker.wait()  # Wait for the thread to finish
+
+        print("Goodbye!")
         event.accept()
 
 class PopupDialog(QDialog):
@@ -138,6 +147,7 @@ class PopupDialog(QDialog):
         sys.exit(1)
 
 def run_nolinkui(video_id):
+    print("Starting application (nolinkui)")
     app = QApplication(sys.argv)
 
     chat_worker = ChatWorker(video_id, config)
@@ -146,16 +156,21 @@ def run_nolinkui(video_id):
     app.exec_()
 
 def run_linkui(additional_msg=None):
+    print("Using LinkUI dialog")
     while True:
         dialog = linkui_dialog(additional_msg)
-        if dialog.link in [None, ""]:
+        print("Got link from dialog", dialog.link)
+        if dialog.link in [None, ""] or not dialog.link.startswith("https://www.youtube.com/watch?v="):
+            print("User did not enter a valid link.")
             continue
         else:
+            print("Link appears to be valid.")
             break
 
     run_nolinkui(dialog.link)
 
 def linkui_dialog(additional_msg=None):
+    print("Prompting user for linkui")
     app = QApplication(sys.argv)
 
     dialog = PopupDialog()
@@ -169,23 +184,22 @@ def linkui_dialog(additional_msg=None):
 
     return dialog
 
-def get_user_stream(channelid):
-    print("Autodetecting livestream URL...")
+def get_user_stream(channelid, extra_delay=0):
+    print("Autodetecting livestream URL (AUTOFETCH)...")
     print(f"Channel ID is {channelid}")
 
+    print("Creating selenium instance...", end="")
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")  # Headless mode
     options.add_argument("--disable-gpu")
-
-    print("Creating selenium instance...", end="")
     driver = webdriver.Chrome(options=options)
-    print("OK.")
+    print("Selenium is OK.")
 
     url = f"https://www.youtube.com/channel/{channelid}/live"
     driver.get(url)
 
-    print("Waiting for youtube to finish loading")
-    time.sleep(1)
+    print(f"Waiting {1 + extra_delay} seconds for youtube to load...")
+    time.sleep(1 + extra_delay)
 
     print("Hopefully it's done.")
     finalurl = driver.current_url
@@ -193,27 +207,51 @@ def get_user_stream(channelid):
 
     if '/live' in finalurl:
         # If we're still on the /live page, the user isn't live
-        print("The user is not live")
+        print("The user is not live.")
         driver.quit()
         return None
     else:
         # If we're not on the /live page, the user is live and we can get the link
         videoid = finalurl.split('v=')[1]
         driver.quit()
-        print(f"The user is live, ID: {videoid}")
+        print(f"Hopped to {finalurl}, detected video id as {video_id}")
         return f"https://www.youtube.com/watch?v={videoid}"
+
+def attempt_autofetch(channelid, attempt_num, max_attempts):
+    url = get_user_stream(channelid, attempt_num)
+    if url is None:
+        print(f"Expected URL from autofetch function, got Nonetype. Trying again (try {attempt_num}/{max_attempts})")
+        return None
+    else:
+        return url
+
+def autofetch_run_until_OK(channelid, timeout=3):
+    for attempt in range(timeout):
+        url = attempt_autofetch(channelid, attempt, timeout)
+        if url is not None:
+            break
+    
+    if url is None:
+        print("User is not streaming, shutting down...")
+        print("errno. 5: CANNOT_AUTOFETCH")
+        exit(5)
+    return url
 
 def run_autofetch():
     try: channelid = config["Startup"]["channelid"]
     except KeyError:
         print("Attempted to run in autofetch mode, but channelid is not set. Unsure what to do.")
+        print("Shutting down, errno. 3: NOT_ENOUGH_PARAMETERS")
         sys.exit(3)
-
-    url = get_user_stream(channelid)
-    if url is None:
-        run_linkui("Configured user isn't streaming, falling back to linkui")
-        sys.exit(4)
     
+    try: timeout = config["Startup"]["autofetch_retry_count"]
+    except KeyError:
+        print("WARNING: autofetch_retry_count not set, defaulting to 3...")
+        print("...It is recommended that you set this value explicity.")
+        timeout = 3
+    
+    url = autofetch_run_until_OK(channelid, timeout)
+
     run_nolinkui(url)
 
 if __name__ == "__main__":

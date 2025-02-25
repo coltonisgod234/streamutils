@@ -1,4 +1,5 @@
 import fetcher
+import multiprocessing
 
 class CoreProcessor:
     '''
@@ -42,4 +43,14 @@ class CoreProcessor:
         '''
         self.running = True
         while self.running:
+            self.process_event()
             self.next_message()
+
+    def mpstart(self):
+        self.process = multiprocessing.Process(target=self.start)
+        self.process.start()
+
+        return
+    
+    def mpstop(self):
+        self.stop()

@@ -6,6 +6,7 @@ import inspect
 import sys
 from time import sleep, time_ns
 import os
+import queue
 
 from events import events
 
@@ -24,25 +25,25 @@ class PluginHost:
     def __init__(self, queue, plugin):
         self.queue = queue
         self.process = None
-        self.running = False
         self.plugin = plugin
         self.plugin_name = type(self.plugin).__name__
-    
+        self.running = multiprocessing.Value('b', False)  # Shared boolean flag
+
     def next_ev(self):
         '''
         Returns the next event from queue.get()
         '''
-        if not self.queue.empty():
-            event = self.queue.get(False)
-            return event
-        else:
+        try:
+            return self.queue.get_nowait()
+        except queue.Empty:
             return ""
-    
+
     def tick(self):
         '''
         Processes one event from the queue
         '''
         event = self.next_ev()
+
         if event == "":
             self.plugin.nullevent()
             return
@@ -52,41 +53,53 @@ class PluginHost:
             self.plugin.message(obj)
 
         elif event.startswith(events.TERMINATE.value):
-            self.running = False
+            self.running.value = False  # Ensure shared state update
 
     def start(self, config):
         '''
         Starts the pluginhost, usually a target for multiprocessing.Process()
         '''
-        self.running = True
-
+        self.running.value = True  # Shared flag
         self.plugin.startup(config)
-        while self.running:
+
+        while self.running.value:
             self.tick()
+            time.sleep(0.01)  # Avoid CPU overuse
         
-        return
-    
-    def stop(self):
-        self.running = False
         self.plugin.destroy()
+
+    def stop(self):
+        '''
+        Stops the pluginhost process
+        '''
+        if self.process and self.process.is_alive():
+            self.queue.put_nowait(events.TERMINATE.value)
+            self.process.join(timeout=5)
+
+            if self.process.is_alive():
+                print(f"WARNING: Plugin {self.plugin_name} did not terminate, force killing.")
+                self.process.terminate()  # Force kill if necessary
+            
+            self.process = None  # Cleanup
+        else:
+            print(f"Plugin {self.plugin_name} already stopped.")
 
     def mpbegin(self, config):
         '''
         Create a multiprocessing instance and call start()
         '''
+        if self.process and self.process.is_alive():
+            print(f"Plugin {self.plugin_name} is already running.")
+            return
+
         self.process = multiprocessing.Process(target=self.start, args=(config,))
         self.process.start()
-        return
-    
-    def mpstop(self):
-        self.stop()
 
-        self.queue.put_nowait(events.TERMINATE.value)
-        self.process.join()
-        return
-    
-    def send_event(self, event):
-         self.queue.put_nowait(event)
+    def mpstop(self):
+        '''
+        Stops the multiprocessing instance
+        '''
+        self.stop()
 
 class PluginManager:
     '''
@@ -136,15 +149,3 @@ class PluginManager:
     
     def send_event(self, name, event):
         self.plugins[name].send_event(event)
-
-mgr = PluginManager("plugins")
-mgr.disk_load_plugin("example.py", "/mnt/sda1/streamutils2/newsrc/plugins/example.py")
-mgr.start_plugin("example.py", {})
-
-sleep(1)
-
-mgr.stop_plugin("example.py")
-
-
-
-exit(1)

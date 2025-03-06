@@ -1,95 +1,101 @@
-import os
-import sys
+import asyncio
 import importlib.util
-import inspect
-import pluginsdk
-import json
+import sys
+
+class Example:
+    def run(self, message_queue: asyncio.Queue, event_queue: asyncio.Queue, config: dict):
+        '''
+        This method runs in a thread upon the plugins startup.
+
+        Arguments
+        ---------
+        message_queue:
+            Any argument named `message_queue` will be given an asyncio.Queue object
+            to send pytchat message objects to the client
+
+        event_queue:
+            Any argument named `event_queue` will be given an asyncio.Queue object
+            to communicate with the host
+        '''
+        self.messages = message_queue
+        self.events = event_queue
+        self.config = config
+        print("[Example] Plugin started!")
+
+class PluginHost:
+    def __init__(self, obj, config={}):
+        self.object = obj
+        self.message_queue = asyncio.Queue()
+        self.event_queue = asyncio.Queue()
+        self.config = config
+        self.task:asyncio.Task = None
+        print(f"PluginHost init but not started {self.object}")
+    
+    async def spawn(self):
+        '''
+        Spawn the asnycio '''
+        print(f"Starting asyncio task {self.object}")
+        self.task = asyncio.create_task(
+            asyncio.to_thread(
+                self.object.run,
+                message_queue=self.message_queue,
+                event_queue=self.event_queue,
+                config=self.config
+            )
+        )
+        print("PluginHost started asyncio task")
+    
+    async def message(self, data = None):
+        await self.message_queue.put(data)
+    
+    async def event(self, type:str, data:dict = None):
+        await self.event_queue.put({
+            "type": type,
+            "data": data
+        })
+    
+    def stop(self):
+        self.task.cancel()
 
 class PluginManager:
-    def __init__(self, plugin_dir="plugins", base_dir=os.path.abspath(__file__), signal=None, config=None):
-        self.install_dir = base_dir
-        self.plugin_dir = os.path.join(self.install_dir, plugin_dir)
+    def __init__(self):
         self.plugins = {}
-        self.gui_signal = signal
-        self.config = config
-
-    def is_plugin_enabled(self, plugin_name):
-        if self.config["Plugins.enable"][plugin_name] == "yes":
-            return True
-        else:
-            return False
     
-    def is_file_plugin(self, filename):
-        if filename.endswith(".py") and filename != "__init__.py":
-            return True
-        else:
-            return False
+    async def load_plugin_from_object(self, name, object, config):
+        self.plugins[name] = PluginHost(
+            obj=object,
+            config=config
+        )
+        await self.plugins[name].spawn()
     
-    def should_load_plugin(self, filename):
-        return self.is_file_plugin(filename) and self.is_plugin_enabled(filename[:-3])
+    async def load_plugin_from_path(self, name, path, config):
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
 
-    def load_plugins(self, signal): 
-        if not os.path.isdir(self.plugin_dir):
+        spec.loader.exec_module(module)  # Execute it for some reason
+        
+        await self.load_plugin_from_object(name, module, config)
+    
+    def stop_plugin(self, name):
+        p = self.plugins.get(name)
+        if p == None:
+            print(f"PluginManager can't stop unloaded plugin {name}")
             return
         
-        for filename in os.listdir(self.plugin_dir):
-            if self.should_load_plugin(filename):
-                # Load the plugin
-                self.load_plugin(filename)
-
-    def is_plugin_valid(self, obj):
-        if inspect.isclass(obj) and issubclass(obj, pluginsdk.PluginInterface) and obj != pluginsdk.PluginInterface:
-            return True
-        else:
-            return False
-
-    def load_plugin(self, filename):
-        plugin_name = filename[:-3]  # Remove ".py" extension
-        json_path = f"{plugin_name}.json"  # Find the coresponding JSON
-        plugin_path = os.path.join(self.plugin_dir, filename)
-        
-        spec = importlib.util.spec_from_file_location(plugin_name, plugin_path)
-        plugin_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(plugin_module)
-        
-        # Look at only the first member found
-        members =  inspect.getmembers(plugin_module)
-        for name, obj in members:
-            if self.is_plugin_valid(obj):
-                try:
-                    o = obj()
-                    o.__name__ = plugin_name
-                    o.__file__ = plugin_path
-                    o.__json__ = json_path
-                    o.__signal__ = self.gui_signal
-                    self.plugins[plugin_name] = o
-                    #self.plugins[name].event_load()
-                    self.gui_signal.emit(f"Plugin {plugin_name} is OK.")
-                except Exception as e:
-                    # Just skip loading it if the plugin errors
-                    print(f"Error loading plugin {plugin_name}, unhandled exception: {e}")
-                    self.gui_signal.emit(f"Error opening plugin {plugin_name}, caught exception: {e}")
-                    continue
-
-    def configure_plugin(self, json_filename, plugin):
-        file = os.path.join(self.plugin_dir, json_filename)
-        with open(file, "r") as f:
-            data = json.load(f)
-            plugin.configure(data)
-
-    def configure_plugins(self, signal):
+        p.stop()
+        del p
+        print(f"PluginManager stopped plugin")
+    
+    async def msg_all(self, c):
+        print(self.plugins)
         for name, plugin in self.plugins.items():
-            self.configure_plugin(plugin.__json__, plugin)
-            signal.emit(f"Configured {name}")
+            print(f"sending {name} message {c}")
+            await plugin.message(c)
 
-    def initalize_plugins(self, signal):
-        for name, plugin in self.plugins.items():
-            plugin.event_load()
-            signal.emit(f"Initalized {name}")
+manager = PluginManager()
+async def main():
+    await manager.load_plugin_from_path("test", "plugins/test.py", {})
+    manager.stop_plugin("test")
 
-    def unload_plugins(self):
-        for plugin in self.plugins:
-            plugin.event_kill()
-
-    def notify(self, source:str | None, dest:str, data:str):
-        self.plugins[dest].event_notify(source, data)
+#asyncio.run(main())

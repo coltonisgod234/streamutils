@@ -262,5 +262,5 @@ if __name__ == "__main__":
     elif config["Startup"]["startup_mode"] == "none":
         run_nolinkui(args.video_id)
     else:
-        print("Invalid startup mode. Unsure what to do")
+        print("Invalid startup mode. Unsure what to do; errno. 2")
         sys.exit(2)

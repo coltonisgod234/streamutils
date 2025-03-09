@@ -1,8 +1,8 @@
 '''
-Module containing plugin interfaces and definitions, does not contain any plugis
+Module containing plugin interfaces and definitions, does not contain any plugins
 '''
 
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 
 class PluginInterface(ABC):
     '''
@@ -19,9 +19,6 @@ class PluginInterface(ABC):
     
     - __json__
         Holds the canonical path to the corresponding JSON file
-    
-    - __debug__
-        True if the plugin is in debug mode(TODO) and False if not
     '''
     LDEBUG, LINFO, LWARN, LERROR, LCRITICAL = "DEBUG", "INFORMATION", "WARNING", "ERROR", "CRITICAL"
     @abstractmethod
@@ -61,9 +58,9 @@ class PluginInterface(ABC):
     @abstractmethod
     def event_main(self, t, loop_wait):
         '''
-        This is called every time chat messages are polled (typically every 16ms by default)
+        This is called every time chat messages are polled
 
-        `t` is `time.time_ns()`, time in nanosecconds since the UINX epoch
+        `t` is `time.time_ns()`, time in nanoseconds since the UINX epoch
         `loop_wait` is `config["Backend"]["loop_wait_ns"]`, time in nanoseconds that each wait takes
         '''
         pass
@@ -77,7 +74,8 @@ class PluginInterface(ABC):
         pass
 
     def log(self, severity, message):
-        print(f"[{self.__name__: <10}]  {severity:>15}     {message}")
+        print(f"[PLUGIN ECHO | {self.__name__}]  {severity}     {message}")
     
     def echo(self, message):
-        self.__signal__.emit(f"[PLGUIN | {self.__name__: <10}]   {message}")
+        self.__signal__.emit(f"[PLUGIN | {self.__name__}]   {message}")
+        print(f"[PLUGIN ECHO | {self.__name__}]     {message}")

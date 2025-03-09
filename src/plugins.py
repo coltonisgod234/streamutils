@@ -1,9 +1,10 @@
 import os
-import sys
+import concurrent.futures as cf
 import importlib.util
 import inspect
 import pluginsdk
 import json
+import types
 
 class PluginManager:
     def __init__(self, plugin_dir="plugins", base_dir=os.path.abspath(__file__), signal=None, config=None):
@@ -12,6 +13,9 @@ class PluginManager:
         self.plugins = {}
         self.gui_signal = signal
         self.config = config
+        self.max_plugins = int(config["Plugins"]["max_plugins"])
+        self.executor = cf.ThreadPoolExecutor(max_workers=self.max_plugins)
+        print(f"[PLUGIN MANAGER | INFO] concurent.futures has spawned a ThreadPoolExecutor with {self.max_plugins} threads.")
 
     def is_plugin_enabled(self, plugin_name):
         if self.config["Plugins.enable"][plugin_name] == "yes":
@@ -26,9 +30,12 @@ class PluginManager:
             return False
     
     def should_load_plugin(self, filename):
-        return self.is_file_plugin(filename) and self.is_plugin_enabled(filename[:-3])
+        if self.is_file_plugin(filename) and self.is_plugin_enabled(filename[:-3]):
+            return True
+        else:
+            return False
 
-    def load_plugins(self, signal): 
+    def load_plugins(self): 
         if not os.path.isdir(self.plugin_dir):
             return
         
@@ -42,6 +49,27 @@ class PluginManager:
             return True
         else:
             return False
+    
+    def plugin_run_function(self, plugin_name:str, function_name:str, args:tuple=()):
+        if self.executor._shutdown:
+            print("[PLUGIN MANAGER | ERROR] Attempted to start a new task on plugin ThreadPoolExecutor after it's shutdown! Ignoring request.")
+            print("[PLUGIN MANAGER | NOTE] ^^^ The above error is normal while the application is shutting down")
+            return
+
+        plugin = self.plugins.get(plugin_name)
+        if plugin is None:
+            return
+
+        try: function = plugin.__getattribute__(function_name)
+        except AttributeError as e:
+            print(f"[PLUGIN MANAGER | ERROR] Error calling into plugin: {plugin_name}.{function_name} {args}. Exception: {e}")
+            return
+
+        if not isinstance(function, types.MethodType):
+            print(f"[PLUGIN MANAGER | ERROR] Error calling into plugin: {plugin_name}.{function_name} {args}. Attribute is not of MethodType")
+            return
+
+        self.executor.submit(function, args)
 
     def load_plugin(self, filename):
         plugin_name = filename[:-3]  # Remove ".py" extension
@@ -63,33 +91,38 @@ class PluginManager:
                     o.__json__ = json_path
                     o.__signal__ = self.gui_signal
                     self.plugins[plugin_name] = o
-                    #self.plugins[name].event_load()
-                    self.gui_signal.emit(f"Plugin {plugin_name} is OK.")
+                    self.plugin_run_function(plugin_name, "event_load")
+                    self.gui_signal.emit(f"Plugin {plugin_name} loaded.")
                 except Exception as e:
                     # Just skip loading it if the plugin errors
-                    print(f"Error loading plugin {plugin_name}, unhandled exception: {e}")
-                    self.gui_signal.emit(f"Error opening plugin {plugin_name}, caught exception: {e}")
+                    print(f"[PLUGIN MANAGER | ERROR] Error loading plugin {plugin_name}, unhandled exception: {e}")
+                    self.gui_signal.emit(f"[PLUGIN MANAGER | ERROR] Error loading plugin {plugin_name}, caught exception: {e}")
                     continue
 
-    def configure_plugin(self, json_filename, plugin):
-        file = os.path.join(self.plugin_dir, json_filename)
+    def configure_plugin(self, plugin):
+        name = plugin.__name__
+        file = os.path.join(self.plugin_dir, plugin.__json__)
         with open(file, "r") as f:
+            print(f"[PLUGIN MANAGER | INFO] Configuring {name}: {file}")
             data = json.load(f)
-            plugin.configure(data)
+            self.plugin_run_function(name, "configure", (data,))
 
-    def configure_plugins(self, signal):
+    def configure_plugins(self):
         for name, plugin in self.plugins.items():
-            self.configure_plugin(plugin.__json__, plugin)
-            signal.emit(f"Configured {name}")
-
-    def initalize_plugins(self, signal):
-        for name, plugin in self.plugins.items():
-            plugin.event_load()
-            signal.emit(f"Initalized {name}")
+            self.configure_plugin(plugin)
+            self.gui_signal.emit(f"[PLUGIN MANAGER | INFO] Configured plugin {name}")
 
     def unload_plugins(self):
-        for plugin in self.plugins:
-            plugin.event_kill()
+        for name, plugin in self.plugins.items():
+            self.gui_signal.emit(f"[PLUGIN MANAGER | INFO] Shutting down plugin {name}")
+            try:
+                # Not submitting the task here, it's important this is syncronous.
+                plugin.event_kill()
+            except Exception as e:
+                self.gui_signal.emit(f"[PLUGIN MANAGER | INFO] While shutting down plugin {name}: event_kill method caused an exception ({e}); Skipping shutdown")
+
+        self.executor.shutdown()
+        self.gui_signal.emit(f"[PLUGIN MANAGER | INFO] Shut down ThreadPoolExecutor of {self.max_plugins} threads")
 
     def notify(self, source:str | None, dest:str, data:str):
         self.plugins[dest].event_notify(source, data)

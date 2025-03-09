@@ -24,7 +24,7 @@ class TTSplugin(PluginInterface):
     
     def event_kill(self):
         self.log(self.LINFO, "TTS plugin quit!")
-        del self.tts_engine
+        del self.engine
     
     def event_notify(self, source, data):
         return

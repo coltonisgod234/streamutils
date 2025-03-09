@@ -59,7 +59,7 @@ class MainWindow(QWidget):
         # Create the chatbox for displaying chat messages
         self.chatbox = QTextEdit("", self)
 
-        if not config["Window"]["scrollbars"]:
+        if config["Window"]["scrollbars"]:
             self.chatbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.chatbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
@@ -87,12 +87,13 @@ class MainWindow(QWidget):
         scrollbar.setValue(scrollbar.maximum())
 
         if config2bool(config["Frontend"]["terminal_echo"]):
-            print(txt)
+            print(f"[TERMINAL ECHO] {txt}")
 
-    def close_event(self, event):
+    def closeEvent(self, event):
         """
         Handle window close event. Safely stop the worker thread.
         """
+        print("[FRONTEND | INFO] Got closeEvent, did you close the window? Running cleanup...")
         self.worker.stop()
         
         self.worker.quit()
@@ -137,13 +138,22 @@ class PopupDialog(QDialog):
     def on_cancel(self):
         sys.exit(1)
 
-def run_nolinkui(video_id):
+def entrypoint(video_id):
+    console_title = config["Window"].get("console_title", fallback="Dave From Seattle (CONSOLE)")
+    print(f"\33]0;{console_title}\a", end="", flush=True)
+
     app = QApplication(sys.argv)
 
     chat_worker = ChatWorker(video_id, config)
     main_window = MainWindow(chat_worker)
     main_window.show()
+
+    print("[FRONTEND | INFO] This is the console window! It's not the main application, you can minimize it safely unless you need the debugging information")
     app.exec_()
+
+    print("[FRONTEND | CRITICAL] The application appears to have terminated or shut down. Exiting with code 0...")
+    exit(0)
+
 
 def run_linkui(additional_msg=None):
     while True:
@@ -153,7 +163,7 @@ def run_linkui(additional_msg=None):
         else:
             break
 
-    run_nolinkui(dialog.link)
+    entrypoint(dialog.link)
 
 def linkui_dialog(additional_msg=None):
     app = QApplication(sys.argv)
@@ -170,51 +180,51 @@ def linkui_dialog(additional_msg=None):
     return dialog
 
 def get_user_stream(channelid):
-    print("Autodetecting livestream URL...")
-    print(f"Channel ID is {channelid}")
+    print("[FRONTEND | INFO] Autodetecting livestream URL...")
+    print(f"[FRONTEND | INFO] Channel ID is {channelid}")
 
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")  # Headless mode
     options.add_argument("--disable-gpu")
 
-    print("Creating selenium instance...", end="")
+    print("[FRONTEND | INFO] Creating selenium instance...", end="")
     driver = webdriver.Chrome(options=options)
-    print("OK.")
+    print("[FRONTEND | INFO] OK.")
 
     url = f"https://www.youtube.com/channel/{channelid}/live"
     driver.get(url)
 
-    print("Waiting for youtube to finish loading")
+    print("[FRONTEND | INFO] Waiting for youtube to finish loading")
     time.sleep(1)
 
-    print("Hopefully it's done.")
+    print("[FRONTEND | INFO] Hopefully it's done.")
     finalurl = driver.current_url
-    print(f"Final URL is `{finalurl}`... ", end="")
+    print(f"[FRONTEND | INFO] Final URL is `{finalurl}`... ", end="")
 
     if '/live' in finalurl:
         # If we're still on the /live page, the user isn't live
-        print("The user is not live")
+        print("[FRONTEND | ERROR] The user is not live")
         driver.quit()
         return None
     else:
         # If we're not on the /live page, the user is live and we can get the link
         videoid = finalurl.split('v=')[1]
         driver.quit()
-        print(f"The user is live, ID: {videoid}")
+        print(f"[FRONTEND | INFO] The user is live, ID: {videoid}")
         return f"https://www.youtube.com/watch?v={videoid}"
 
 def run_autofetch():
     try: channelid = config["Startup"]["channelid"]
     except KeyError:
-        print("Attempted to run in autofetch mode, but channelid is not set. Unsure what to do.")
-        sys.exit(3)
+        print("[FRONTEND | CRITICAL] Attempted to run in autofetch mode, but channelid is not set. Unsure what to do. Exiting with code 2")
+        sys.exit(2)
 
     url = get_user_stream(channelid)
     if url is None:
+        run_linkui("[FRONTEND | ERROR] Configured user isn't streaming, falling back to linkui")
         run_linkui("Configured user isn't streaming, falling back to linkui")
-        sys.exit(4)
     
-    run_nolinkui(url)
+    entrypoint(url)
 
 if __name__ == "__main__":
     if config["Startup"]["startup_mode"] == "linkui":
@@ -222,7 +232,7 @@ if __name__ == "__main__":
     elif config["Startup"]["startup_mode"] == "autofetch":
         run_autofetch()
     elif config["Startup"]["startup_mode"] == "none":
-        run_nolinkui(args.video_id)
+        entrypoint(args.video_ID)
     else:
-        print("Invalid startup mode. Unsure what to do")
-        sys.exit(2)
+        print("Invalid startup mode. Unsure what to do. Exiting with code 4.")
+        sys.exit(4)

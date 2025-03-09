@@ -61,45 +61,23 @@ class ChatWorker(QThread):
             signal=self.msg_signal,
             config=self.config
         )
-        print("Plugin OK.")
         self.loop_wait = int(self.config["Backend"]["loop_wait_ns"])
         self.pluginmain = config2bool(self.config["Plugins"]["enable_pluginmain"])
 
-    def check_if_chat_alive(self):
-        """
-        Checks if the YouTube chat is alive.
-        """
-        return self.chat.is_alive()
-
     def startup(self):
         # Initalize all plugins
-        self.plugin_manager.load_plugins(self.msg_signal)
-        self.plugin_manager.initalize_plugins(self.msg_signal)
-        self.plugin_manager.configure_plugins(self.msg_signal)
-        self.msg_signal.emit("OK.")
-    
-    def print_config(self):
-        self.msg_signal.emit(f"Dumped configuration below")
-        a = ""
-        for section in self.config.sections():
-            a += f"[{section}]  "
-            for key, value in self.config.items(section):
-                a += (f"{key}={value};")
-            
-        self.msg_signal.emit(a)
+        self.plugin_manager.load_plugins()
+        self.plugin_manager.configure_plugins()
+        self.msg_signal.emit("[CHAT WORKER | INFO] Dave From Seattle is READY!")
 
     def plugins_main(self):
-        for name, plugin in self.plugin_manager.plugins.items():
-            try:
-                plugin.event_main(time.time_ns(), self.loop_wait)
-
-            except Exception as e:
-                print(f"{name} error'd but honestly we're just gonna ignore it, {e}")
+        for name, _ in self.plugin_manager.plugins.items():
+            t = time.time_ns()
+            self.plugin_manager.plugin_run_function(name, "event_main", (t, self.loop_wait,))
 
     def message_notify(self, message):
-        for name, plugin in self.plugin_manager.plugins.items():
-            try: plugin.event_message(message)
-            except Exception as e: print(f"{name} error'd notifying message but honestly it's a plugin who cares, {e}")
+        for name, _ in self.plugin_manager.plugins.items():
+            self.plugin_manager.plugin_run_function(name, "event_message", (message))
 
     def run(self):
         """
@@ -108,7 +86,7 @@ class ChatWorker(QThread):
         self.startup()
         # While running, we fetch chat messages
         while self.running:
-            QThread.usleep(self.loop_wait)
+            self.usleep(self.loop_wait)
             if self.pluginmain: self.plugins_main()
             for c in self.chat.get().sync_items():
                 # Process the message
@@ -124,7 +102,6 @@ class ChatWorker(QThread):
         """
         self.plugin_manager.unload_plugins()
         self.running = False
-        # self.wait()  # Wait for the thread to finish
 
     def set_video_id(self, video_id: str):
         """

@@ -12,7 +12,7 @@ import time
 
 import argparse
 
-parser = argparse.ArgumentParser(prog="SteamUtils chat overlay")
+parser = argparse.ArgumentParser(prog="Steamutils chat overlay (AKA. Dave From Seattle)")
 parser.add_argument("video_ID", type=str, help="Video ID to use", default="https://www.youtube.com/watch?v=jfKfPfyJRdk")
 parser.add_argument("-C", type=str, help="Config file to use", required=True)
 

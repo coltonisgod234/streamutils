@@ -1,5 +1,6 @@
 from pluginsdk import PluginInterface
 import pyttsx3
+import time
 
 class TTSplugin(PluginInterface):
     def speak(self, text):
@@ -13,6 +14,8 @@ class TTSplugin(PluginInterface):
 
     def event_message(self, m):
         self.log(self.LINFO, "TTS plugin got a message.")
+        time.sleep(2)
+        self.log(self.LINFO, "TTS plugin stoppped wasting time.")
 
         # NO SPAM FILTER!
         if m.message.startswith(self.prefix):
@@ -24,7 +27,6 @@ class TTSplugin(PluginInterface):
     
     def event_kill(self):
         self.log(self.LINFO, "TTS plugin quit!")
-        del self.engine
     
     def event_notify(self, source, data):
         return

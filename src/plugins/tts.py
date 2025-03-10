@@ -13,9 +13,7 @@ class TTSplugin(PluginInterface):
         self.logger = logger
 
     def event_message(self, m):
-        self.logger.info("Got a message, will sleep for 2 seconds")
-        time.sleep(2)
-        self.logger.info("Done sleeping")
+        self.logger.info("Got a message")
 
         # NO SPAM FILTER!
         if m.message.startswith(self.prefix):

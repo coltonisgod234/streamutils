@@ -7,6 +7,7 @@ import plugins
 import emoji
 import time
 import os
+import logging
 
 def config2bool(s):
     if s in ["yes"]:
@@ -55,11 +56,17 @@ class ChatWorker(QThread):
         try: self.installdir = config["Plugins.Paths"]["installdir"]
         except KeyError: self.installdir = None
 
+        self.logger = logging.getLogger("chatworker")
+        self.logger.setLevel(logging.INFO)
+        pluginmgr_logger = logging.getLogger("pluginmgr")
+        pluginmgr_logger.setLevel(logging.INFO)
+
         self.plugin_manager = plugins.PluginManager(
             plugin_dir=config["Plugins.Paths"]["plugindir"],
             base_dir=self.installdir if self.installdir is not None else os.path.dirname(__file__),
             signal=self.msg_signal,
-            config=self.config
+            config=self.config,
+            logger=pluginmgr_logger
         )
         self.loop_wait = int(self.config["Backend"]["loop_wait_ns"])
         self.pluginmain = config2bool(self.config["Plugins"]["enable_pluginmain"])

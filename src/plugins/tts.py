@@ -7,26 +7,24 @@ class TTSplugin(PluginInterface):
         self.engine.say(text)
         self.engine.runAndWait()
 
-    def event_load(self):
+    def event_load(self, logger):
         self.engine = pyttsx3.init()
 
-        self.log(self.LINFO, "TTS plugin loaded!")
+        self.logger = logger
 
     def event_message(self, m):
-        self.log(self.LINFO, "TTS plugin got a message.")
-        time.sleep(2)
-        self.log(self.LINFO, "TTS plugin stoppped wasting time.")
+        self.logger.info("Got a message")
 
         # NO SPAM FILTER!
         if m.message.startswith(self.prefix):
             # self.tts_engine.say(m.message)
-            self.log(self.LINFO, "it's a TTS message!")
+            self.logger.info("This is a TTS message")
             
             msg = m.message.replace(self.prefix, "", 1)
             self.speak(msg)
     
     def event_kill(self):
-        self.log(self.LINFO, "TTS plugin quit!")
+        self.logger.info("TTS plugin quit")
     
     def event_notify(self, source, data):
         return
@@ -35,5 +33,5 @@ class TTSplugin(PluginInterface):
         return  # We don't care about what's going on this timeslice
 
     def configure(self, config):
-        self.log(self.LINFO, f"TTS plugin configured, config={config}")
+        self.logger.info("Plugin configured")
         self.prefix = config["prefix"]

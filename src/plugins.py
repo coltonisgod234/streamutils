@@ -206,7 +206,7 @@ class PluginManager:
 
                     # Run it's load function
                     logger = logging.getLogger(f"plugins.{plugin_name}")
-                    self.plugin_run_function(plugin_name, "event_load", (logger,))
+                    self.plugin_run_function(plugin_name, "event_load", (logger))
 
                     self.logger.info(f"LOAD PLUGIN {plugin_name}: the call went through!")
                 except Exception as e:

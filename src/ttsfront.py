@@ -16,7 +16,7 @@ import logging
 
 logging.basicConfig(
     level=logging.INFO,  # Global level: we can override this for specific loggers
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='[ %(asctime)15s | %(name)15s | %(levelname)6s ] %(message)s',
     handlers=[logging.StreamHandler()]  # You can add FileHandler or other handlers as well
 )
 

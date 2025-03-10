@@ -20,9 +20,8 @@ class PluginInterface(ABC):
     - __json__
         Holds the canonical path to the corresponding JSON file
     '''
-    LDEBUG, LINFO, LWARN, LERROR, LCRITICAL = "DEBUG", "INFORMATION", "WARNING", "ERROR", "CRITICAL"
     @abstractmethod
-    def event_load(self):
+    def event_load(self, logger):
         '''
         This method must be implemented by all plugins.
         This method will be called to initalize the plugin's behaviour
@@ -72,10 +71,3 @@ class PluginInterface(ABC):
         This method will be called to configure the plugins behaviour
         '''
         pass
-
-    def log(self, severity, message):
-        print(f"[PLUGIN ECHO | {self.__name__}]  {severity}     {message}")
-    
-    def echo(self, message):
-        self.__signal__.emit(f"[PLUGIN | {self.__name__}]   {message}")
-        print(f"[PLUGIN ECHO | {self.__name__}]     {message}")

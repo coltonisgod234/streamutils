@@ -14,12 +14,27 @@ def convert_message(c, config) -> tuple[str, str]:
     verbose = config["Frontend"].getboolean("verbose", False)
 
     if verbose:
-        gui_message = f"""
-        ---Msg:  {c.message}
-        ---Meta: type={c.type} id={c.id}
-        ---Time: timestamp={c.timestamp} datetime={c.datetime}
-        ---Auth: authName={c.author.name} authChID={c.author.channelId} authVerif={c.author.isVerified} authOwn={c.author.isChatOwner} authMod?={c.author.isChatModerator} authSp={c.author.isChatSponsor}
-        """
+        gui_message = f"\n\
+            type={c.type}\n\
+            id={c.id}\n\
+            message={c.message}\n\
+            messageEx={c.messageEx}\n\
+            timestamp={c.timestamp}\n\
+            datetime={c.datetime}\n\
+            elapsedTime={c.elapsedTime}\n\
+            donoAmountValue={c.amountValue}\n\
+            donoAmountString={c.amountString}\n\
+            donoCurrency={c.currency}\n\
+            bgColour={c.bgColor}\n\
+            author.name={c.author.name}\n\
+            author.channelId={c.author.channelId}\n\
+            author.channelUrl={c.author.channelUrl}\n\
+            author.imageUrl={c.author.imageUrl}\n\
+            author.badgeUrl={c.author.badgeUrl}\n\
+            author.isVerified={c.author.isVerified}\n\
+            author.isChatOwner={c.author.isChatOwner}\n\
+            author.isChatModerator={c.author.isChatModerator}\n\
+            author.isChatSponsor={c.author.isChatSponsor}"
 
     elif c.type == "superChat":
         gui_message = config["Frontend.messageTemplates"]["superChat"].format(msg=c)
@@ -43,7 +58,7 @@ class ChatWorker(QThread):
         super().__init__()
         self.video_id = video_id
         self.config = config
-        self.chat = pytchat.create(video_id=self.video_id)
+
         self.running = True  # Flag to keep the thread running
         self.installdir = config["Plugins.Paths"].get("installdir", None)
 
@@ -61,6 +76,8 @@ class ChatWorker(QThread):
         )
         self.loop_wait = self.config["Backend"].getint("loop_wait_ns")
         self.pluginmain = self.config["Plugins"].getboolean("enable_pluginmain", False)
+
+        self.set_video_id(self.video_id)
 
     def startup(self):
         # Initalize all plugins

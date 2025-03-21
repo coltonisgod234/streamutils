@@ -14,24 +14,41 @@ import argparse
 
 import logging
 
+LOG_LEVELS_LIST_TEXT = '''Log levels:
+* 10 = DEBUG
+* 20 = INFO
+* 30 = WARN
+* 40 = ERROR
+* 50 = CRITICAL'''
+
 logger_chatworker = logging.getLogger("ChatWorker")
 logger_frontend = logging.getLogger("Frontend")
 
-parser = argparse.ArgumentParser(prog="Steamutils chat overlay (AKA. Dave From Seattle)")
-parser.add_argument("video_ID", type=str, help="Video ID to use", default="https://www.youtube.com/watch?v=jfKfPfyJRdk")
-parser.add_argument("-C", type=str, help="Config file to use", required=True)
+parser = argparse.ArgumentParser(
+    prog="Steamutils chat overlay (AKA. Dave From Seattle)",
+    formatter_class=argparse.RawTextHelpFormatter
+)
+
+parser.add_argument("video_ID", type=str, help="YouTube video ID to use (REQUIRED)", default="https://www.youtube.com/watch?v=jfKfPfyJRdk")
+parser.add_argument("-C", type=str, help="config file to use (REQUIRED)", required=True, metavar="configpath")
+parser.add_argument("--log_level", type=int, help=f"{LOG_LEVELS_LIST_TEXT}", default=20, required=False)
 
 args = parser.parse_args()
 
 logging.basicConfig(
-    level=logging.INFO,  # Global level: we can override this for specific loggers
+    level=args.log_level,
     format='[ %(asctime)15s | %(name)15s | %(levelname)8s ]\t %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 
+configpath = args.C
+
+logging.info(f"Config file path is: {configpath}")
+logging.info(f"Log level is: {args.log_level}")
+
 config = configparser.ConfigParser()
-config.read(args.C)
-logging.info(f"Read configuration {args.C}")
+config.read(configpath)
+logging.info(f"Read configuration {configpath}")
 
 class MainWindow(QWidget):
     """

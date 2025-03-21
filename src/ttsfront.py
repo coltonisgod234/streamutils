@@ -14,12 +14,6 @@ import argparse
 
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,  # Global level: we can override this for specific loggers
-    format='[ %(asctime)15s | %(name)15s | %(levelname)6s ] %(message)s',
-    handlers=[logging.StreamHandler()]  # You can add FileHandler or other handlers as well
-)
-
 logger_chatworker = logging.getLogger("ChatWorker")
 logger_frontend = logging.getLogger("Frontend")
 
@@ -29,8 +23,15 @@ parser.add_argument("-C", type=str, help="Config file to use", required=True)
 
 args = parser.parse_args()
 
+logging.basicConfig(
+    level=logging.INFO,  # Global level: we can override this for specific loggers
+    format='[ %(asctime)15s | %(name)15s | %(levelname)8s ]\t\t %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
 config = configparser.ConfigParser()
 config.read(args.C)
+logging.info(f"Read configuration {args.C}")
 
 def config2bool(s):
     if s in ["yes"]:

@@ -58,7 +58,7 @@ class PluginManager:
     
     def is_file_plugin(self, filename):
         '''
-        Returns True if a given filename is a plugin anf False otherwise
+        Returns True if a given filename is a plugin and False otherwise
         '''
         if filename.endswith(".py") and filename != "__init__.py":
             return True
@@ -95,12 +95,13 @@ class PluginManager:
             return True
         else:
             return False
-        
+    
     def plugin_done_function(self, future:cf.Future, name:str):
         '''
         Required to manage blame.
         Runs when a given plugin is done executing
         '''
+        self.logger.debug(f"END: Call to plugin {name} complete")
         self.plugin_blame[name] -= 1
         self.logger.debug(f"{name}'s blame is {self.plugin_blame[name]} (max {self.max_blame})")
     
@@ -108,9 +109,10 @@ class PluginManager:
         '''
         Run a given function from a plugin
         '''
+        self.logger.debug(f"START: Calling plugin function call: {plugin_name}.{function_name} {args}...")
         # Ensure the executor is still alive and hasn't terminated
         if self.executor._shutdown:
-            self.logger.error(f"Attempted to start a new task on {self.use_threads}-based executor after it's shutdown! Ignoring request.")
+            self.logger.error(f"END: Attempted to start a new task on {self.use_threads}-based executor after it's shutdown! Ignoring request.")
             self.logger.info("^^^ The above error is normal while the application is shutting down")
             return
 
@@ -118,6 +120,7 @@ class PluginManager:
         plugin = self.plugins.get(plugin_name)
         if plugin is None:
             # Ensure what we recived was actually valid
+            self.logger.error(f"END: Error calling into plugin: {plugin_name}.{function_name} {args}. `{plugin_name}` is not in `plugins` ({e})")
             return
 
         # Try to get the function
@@ -126,40 +129,40 @@ class PluginManager:
             # We succeed here
         except AttributeError as e:
             # That attribute doesn't exist
-            self.logger.error(f"Error calling into plugin: {plugin_name}.{function_name} {args}. Exception: {e}")
+            self.logger.error(f"END: Error calling into plugin: {plugin_name}.{function_name} {args}. Can't retrive function `{function_name}` ({e})")
             return
 
         # Make sure that it's actually a function that we can call
         if not isinstance(function, types.MethodType):
             # If it's not, print an error and return
-            self.logger.error(f"Error calling into plugin: {plugin_name}.{function_name} {args}. Attribute is not of MethodType")
+            self.logger.error(f"END: Error calling into plugin: {plugin_name}.{function_name} {args}. Attribute is not of `MethodType`")
             return
         
         # Get the number of threads, warn the user if there are too many
         num_threads = len(self.executor._threads)
         if num_threads == self.max_workers:
-            self.logger.warning(f"There are too many threads running ({num_threads}/{self.max_workers})! Tasks will be queued, events may arrive to plugins late! You should adjust max_threads")
+            self.logger.warning(f"There are too many threads running ({num_threads}/{self.max_workers})! Tasks will be queued, events may arrive to plugins late! You should adjust `max_threads`")
         
         # Get the plugin's blame, if it's blame is too high we execuete this
         if self.plugin_blame[plugin_name] >= self.max_blame:
 
             # Discard the event and never send it to the plugin
             if self.blame_action == "discard":
-                self.logger.warning(f"Plugin {plugin_name}'s blame is too high! Discarding event")
+                self.logger.warning(f"Plugin `{plugin_name}`: blame is too high! Discarding event")
                 return
             
             if self.blame_action == "buffer":
                 self.blame_queues[plugin_name].append([function_name, args])
-                self.logger.warning(f"Plugin {plugin_name}'s blame is too high! Buffer... {self.blame_queues[plugin_name]}")
-
-        if len(self.blame_queues[plugin_name]) >= 1 and self.blame_action == "buffer":
-            nxt = self.blame_queues[plugin_name].pop()
-            future = self.executor.submit(nxt[0], nxt[1])
-            self.logger.debug(f"Executing {nxt} from buffer {self.blame_queues[plugin_name]}.")
+                self.logger.debug(f"Plugin `{plugin_name}`: blame is too high! Buffer... {self.blame_queues[plugin_name]}")
+                if len(self.blame_queues[plugin_name]) >= 1:
+                    nxt = self.blame_queues[plugin_name].pop()
+                    future = self.executor.submit(nxt[0], nxt[1])
+                    self.logger.debug(f"Executing {nxt} from buffer {self.blame_queues[plugin_name]}.")
 
         # We're ready to submit a task after... A lot of checks.
         future = self.executor.submit(function, args)
         future.add_done_callback(lambda future: self.plugin_done_function(future, plugin_name))
+
         self.logger.debug(f"There are now {num_threads} running out of {self.max_workers}")  # A little bit of debug
 
         # Add one to the blame
@@ -202,13 +205,11 @@ class PluginManager:
 
                     # Add it to the plugins
                     self.plugins[plugin_name] = o
-                    self.logger.info(f"LOAD PLUGIN {plugin_name}: Calling into event_load")
+                    self.logger.info(f"{plugin_name}: Calling into event_load")
 
                     # Run it's load function
                     logger = logging.getLogger(f"plugins.{plugin_name}")
                     self.plugin_run_function(plugin_name, "event_load", (logger))
-
-                    self.logger.info(f"LOAD PLUGIN {plugin_name}: the call went through!")
                 except Exception as e:
                     # Just skip loading it if the plugin errors
                     self.logger.error(f"Error loading plugin {plugin_name}, caught exception: {e}")
@@ -256,7 +257,7 @@ class PluginManager:
             try:
                 # Not submitting the task here, it's important this is syncronous.
                 plugin.event_kill()
-                self.logger.info("fShut down plugin {name} successfully")
+                self.logger.info(f"Shut down plugin {name} successfully")
             except Exception as e:
                 self.logger.error(f"While shutting down plugin {name}: event_kill method caused an exception ({e}); Skipping shutdown")
 

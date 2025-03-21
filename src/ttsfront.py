@@ -25,21 +25,13 @@ args = parser.parse_args()
 
 logging.basicConfig(
     level=logging.INFO,  # Global level: we can override this for specific loggers
-    format='[ %(asctime)15s | %(name)15s | %(levelname)8s ]\t\t %(message)s',
+    format='[ %(asctime)15s | %(name)15s | %(levelname)8s ]\t %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 
 config = configparser.ConfigParser()
 config.read(args.C)
 logging.info(f"Read configuration {args.C}")
-
-def config2bool(s):
-    if s in ["yes"]:
-        return True
-    if s in ["no"]:
-        return False
-    else:
-        return None
 
 class MainWindow(QWidget):
     """
@@ -51,31 +43,34 @@ class MainWindow(QWidget):
 
         # Window setup
         self.setWindowTitle(config["Window"]["title"])  # Window title
-        if not config2bool(config["Window"]["frame"]):
+        if not config["Window"].getboolean("frame", False):
             self.setWindowFlag(Qt.FramelessWindowHint)  # No frame
 
-        if not config2bool(config["Window"]["interactive"]):
+        if not config["Window"].getboolean("interactive", False):
             self.setAttribute(Qt.WA_TransparentForMouseEvents)  # Noninteractive
 
-        if config2bool(config["Window"]["ontop"]):
+        if config["Window"].getboolean("ontop", False):
             self.setWindowFlag(Qt.WindowStaysOnTopHint)  # Alwaysontop
 
-        self.setWindowOpacity(float(config["Window"]["opacity"]))  # Opactiy
+        self.setWindowOpacity(config["Window"].getfloat("opacity", 0.7))  # Opactiy
 
-        x = int(config["Window"]["x"])
-        y = int(config["Window"]["y"])
-        w = int(config["Window"]["width"])
-        h = int(config["Window"]["height"])
+        x = config["Window"].getint("x", 0)
+        y = config["Window"].getint("y", 0)
+        w = config["Window"].getint("width", 320)
+        h = config["Window"].getint("height", 180)
         self.setGeometry(x, y, w, h)  # Geometry
 
         # Create the chatbox for displaying chat messages
         self.chatbox = QTextEdit("", self)
 
-        if config["Window"]["scrollbars"]:
+        if config["Window"].getboolean("scrollbars", True):
             self.chatbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.chatbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        
+        fontname = config["Window"].get("font", "monospace")
+        fontsize = config["Window"].getint("fontsize", 9)
 
-        font = QFont(config["Window"]["font"], int(config["Window"]["fontsize"]), QFont.Normal)
+        font = QFont(fontname, fontsize, QFont.Normal)
         self.chatbox.setFont(font)
 
         # Layout setup
@@ -98,7 +93,7 @@ class MainWindow(QWidget):
         scrollbar = self.chatbox.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-        if config2bool(config["Frontend"]["terminal_echo"]):
+        if config["Frontend"].getboolean("terminal_echo", True):
             logging.info(f"Echoed to terminal: {txt}")
 
     def closeEvent(self, event):

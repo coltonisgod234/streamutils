@@ -9,18 +9,11 @@ import time
 import os
 import logging
 
-def config2bool(s):
-    if s in ["yes"]:
-        return True
-    if s in ["no"]:
-        return False
-    else:
-        return None
-
 def convert_message(c, config) -> tuple[str, str]:
     c.message = emoji.emojize(c.message)  # Sorry
+    verbose = config["Frontend"].getboolean("verbose", False)
 
-    if config2bool(config["Frontend"]["verbose"]):
+    if verbose:
         gui_message = f"""
         ---Msg:  {c.message}
         ---Meta: type={c.type} id={c.id}
@@ -49,12 +42,10 @@ class ChatWorker(QThread):
     def __init__(self, video_id: str, config: dict):
         super().__init__()
         self.video_id = video_id
-        self.verbose = config2bool(config["Frontend"]["verbose"])
         self.config = config
         self.chat = pytchat.create(video_id=self.video_id)
         self.running = True  # Flag to keep the thread running
-        try: self.installdir = config["Plugins.Paths"]["installdir"]
-        except KeyError: self.installdir = None
+        self.installdir = config["Plugins.Paths"].get("installdir", None)
 
         self.logger = logging.getLogger("chatworker")
         self.logger.setLevel(logging.INFO)
@@ -68,8 +59,8 @@ class ChatWorker(QThread):
             config=self.config,
             logger=pluginmgr_logger
         )
-        self.loop_wait = int(self.config["Backend"]["loop_wait_ns"])
-        self.pluginmain = config2bool(self.config["Plugins"]["enable_pluginmain"])
+        self.loop_wait = self.config["Backend"].getint("loop_wait_ns")
+        self.pluginmain = self.config["Plugins"].getboolean("enable_pluginmain", False)
 
     def startup(self):
         # Initalize all plugins
@@ -114,5 +105,7 @@ class ChatWorker(QThread):
         """
         Change the video ID and restart the chat.
         """
+        self.logger.info(f"Livestream URL set: {video_id}, restarting chat...")
         self.video_id = video_id
         self.chat = pytchat.create(video_id=self.video_id)
+        self.logger.info(f"Restarted chat")

@@ -9,7 +9,37 @@ import time
 import os
 import logging
 
-def convert_message(c, config) -> tuple[str, str]:
+from dataclasses import dataclass
+
+@dataclass
+class XAuthorContainer:
+   platform:            str
+   name:                str
+   id
+   url:                 str | None
+   roles:               dict[str, bool]
+   platform_specific:   dict
+        
+@dataclass
+class XMessageContainer:
+    platform:               str
+                 
+    # Cross platform stuff
+    type:                   str
+    id
+    message:                str
+    timestamp:              float
+    datetime:               str | None
+    dono_amount:            float | None
+    dono_amount_string:     str
+    dono_currency:          str
+    dono_colour:            str
+    author:                 XAuthorContainer
+
+    # Platform specifics
+    platform_specific:      dict
+
+def convert_message_for_gui(c, config) -> tuple[str, str]:
     c.message = emoji.emojize(c.message)  # Sorry
     verbose = config["Frontend"].getboolean("verbose", False)
 
@@ -105,7 +135,7 @@ class ChatWorker(QThread):
             if self.pluginmain: self.plugins_main()
             for c in self.chat.get().sync_items():
                 # Process the message
-                formatted_msg = convert_message(c, self.config)
+                formatted_msg = convert_message_for_gui(c, self.config)
                 self.msg_signal.emit(formatted_msg)  # Update the GUI
 
                 # Notify plugins

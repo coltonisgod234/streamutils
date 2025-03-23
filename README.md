@@ -30,7 +30,7 @@ The application supports multiple startup modes, including:
 # SEE ALSO
 - `python(1)` for allowing me to write this app
 - The `pytchat` python library for making livechat fetching possible!
-- The `pyqt5` python library for allowing me to create overlays!
+- The `pyqt5` python library for allowing me to create the overlay!
 
 # AUTHORS
 (C) 2025 Colton Wollinger.  All rights reserved.

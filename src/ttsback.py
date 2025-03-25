@@ -135,6 +135,10 @@ class ChatWorker(QThread):
             if self.pluginmain: self.plugins_main()
             for c in self.chat.get().sync_items():
                 # Process the message
+                if not self.running:
+                    self.logger.info("Running flipped from True to False, exiting...")
+                    return
+
                 formatted_msg = convert_message_for_gui(c, self.config)
                 self.msg_signal.emit(formatted_msg)  # Update the GUI
 

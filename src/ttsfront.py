@@ -14,6 +14,13 @@ import argparse
 
 import logging
 
+SPLASH_TEXT = '''
+Streamutils (c) 2025 Colton Wollinger. All Rights Reserved.
+Licensed under GNU General Public License 3.0 or later
+
+Report bugs at https://github.com/coltonisgod234/streamutils/issues/
+'''
+
 LOG_LEVELS_LIST_TEXT = '''Log levels:
 * 10 = DEBUG
 * 20 = INFO
@@ -42,6 +49,8 @@ logging.basicConfig(
 )
 
 configpath = args.C
+
+print(SPLASH_TEXT)
 
 logging.info(f"Config file path is: {configpath}")
 logging.info(f"Log level is: {args.log_level}")

@@ -1,5 +1,5 @@
 @ECHO OFF
-TITLE Streamuitls Online Installer (MSWIN)
+TITLE Streamutils Online Installer (MSWIN)
 PROMPT $g
 COLOR 0a
 

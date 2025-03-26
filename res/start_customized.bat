@@ -1,5 +1,9 @@
 TITLE Streamutils (CONSOLE) (Default window title)
-python src/ttsfront.py -C res/defaultconfig.ini youtube.com/watch?v=jfKfPfyJRdk
+cd ..
+
+call .venv\Scripts\activate.bat
+python src/ttsfront.py -C custom/config.ini youtube.com/watch?v=jfKfPfyJRdk
+call .venv\Scripts\deactivate.bat
 
 @ECHO OFF
 ECHO.

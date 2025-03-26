@@ -73,7 +73,10 @@ class MainWindow(QWidget):
             self.setWindowFlag(Qt.FramelessWindowHint)  # No frame
 
         if not config["Window"].getboolean("interactive", False):
-            self.setAttribute(Qt.WA_TransparentForMouseEvents)  # Noninteractive
+            self.setAttribute(Qt.WA_TransparentForMouseEvents, True)  # Noninteractive
+        
+        if config["Window"].getbootlean("translucent", False):  # WINDOWS 10/11 ONLY!
+            self.setAttribute(Qt.WA_TranslucentBackground, True)
 
         if config["Window"].getboolean("ontop", False):
             self.setWindowFlag(Qt.WindowStaysOnTopHint)  # Alwaysontop

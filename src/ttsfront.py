@@ -108,7 +108,7 @@ class MainWindow(QWidget):
         if not config["Window"].getboolean("interactive", False):
             self.setAttribute(Qt.WA_TransparentForMouseEvents, True)  # Noninteractive
         
-        if config["Window"].getbootlean("translucent", False):  # WINDOWS 10/11 ONLY!
+        if config["Window"].getboolean("translucent", False):  # WINDOWS 10/11 ONLY!
             self.setAttribute(Qt.WA_TranslucentBackground, True)
 
         if config["Window"].getboolean("ontop", False):
@@ -125,7 +125,7 @@ class MainWindow(QWidget):
         # Create the chatbox for displaying chat messages
         self.chatbox = QTextEdit("", self)
 
-        if config["Window"].getboolean("scrollbars", True):
+        if not config["Window"].getboolean("scrollbars", True):
             self.chatbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.chatbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         

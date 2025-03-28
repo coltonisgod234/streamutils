@@ -10,6 +10,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 import time
 
+import os
 import argparse
 
 import logging
@@ -28,6 +29,16 @@ LOG_LEVELS_LIST_TEXT = '''Log levels:
 * 40 = ERROR
 * 50 = CRITICAL'''
 
+home = os.path.expanduser("~")
+
+CONFIG_SEARCH_ORDER = [
+    "./config.ini",
+    "./custom/config.ini",
+    "./defaultconfig.ini",
+    "./res/defaultconfig.ini",
+    f"{home}/.streamutils_unix.ini"
+]
+
 logger_chatworker = logging.getLogger("ChatWorker")
 logger_frontend = logging.getLogger("Frontend")
 
@@ -37,20 +48,42 @@ parser = argparse.ArgumentParser(
 )
 
 parser.add_argument("video_ID", type=str, help="YouTube video ID to use (REQUIRED)", default="https://www.youtube.com/watch?v=jfKfPfyJRdk")
-parser.add_argument("-C", type=str, help="config file to use (REQUIRED)", required=True, metavar="configpath")
+parser.add_argument("-C", type=str, help="config file to use", metavar="configpath", required=False)
 parser.add_argument("--log_level", type=int, help=f"{LOG_LEVELS_LIST_TEXT}", default=20, required=False)
+parser.add_argument("--quiet", help="Don't log to stdout", action="store_true", required=False)
 
 args = parser.parse_args()
+
+print(SPLASH_TEXT)
 
 logging.basicConfig(
     level=args.log_level,
     format='[ %(asctime)15s | %(name)15s | %(levelname)8s ]\t %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    handlers=[
+        logging.StreamHandler(sys.stdout) if not args.quiet else logging.StreamHandler(os.devnull)
+    ]
 )
 
 configpath = args.C
 
-print(SPLASH_TEXT)
+def search_config(order) -> str | None:  # Filename
+    logging.info(f"Searching for config automatically... Order: {order}")
+    for filename in order:
+        logging.info(f"Scanning file: {filename}")
+        if os.path.exists(filename):
+            logging.info(f"Found config automatically: {filename}")
+            return filename
+        
+        logging.info(f"{filename} not found. Moving to next path")
+
+    logging.info("Can't find config")
+    return None
+
+if configpath is None:
+    configpath = search_config(CONFIG_SEARCH_ORDER)
+    if configpath is None:
+        logging.info("No config file was found. Exiting with code -1...")
+        sys.exit(-1)
 
 logging.info(f"Config file path is: {configpath}")
 logging.info(f"Log level is: {args.log_level}")

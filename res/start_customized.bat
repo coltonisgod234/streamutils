@@ -2,7 +2,10 @@ TITLE Streamutils (CONSOLE) (Default window title)
 cd ..
 
 call .venv\Scripts\activate.bat
-python src/ttsfront.py -C custom/config.ini youtube.com/watch?v=jfKfPfyJRdk
+@ECHO ON
+
+python src/ttsfront.py youtube.com/watch?v=jfKfPfyJRdk
+
 call .venv\Scripts\deactivate.bat
 
 @ECHO OFF
@@ -16,3 +19,5 @@ ECHO.
 ECHO Paused to inspect crash log
 ECHO Press any key to close this window
 PAUSE
+
+CD RES

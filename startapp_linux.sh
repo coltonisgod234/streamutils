@@ -1,1 +1,1 @@
-python src/ttsfront.py -C res/my_configuration.ini youtube.com/watch?v=jfKfPfyJRdk 
+python src/ttsfront.py -C res/defaultconfig.ini youtube.com/watch?v=jfKfPfyJRdk 

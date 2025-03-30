@@ -5,12 +5,25 @@ import pytchat
 from PyQt5.QtCore import QThread, pyqtSignal
 import plugins
 import emoji
-import time
+
 import os
+import importlib.resources
+import emoji
+
+# Stupid workaround for pyinstaller
+language = "en"  # Change this at build time, screw you
+with importlib.resources.path(emoji, f"unicode_codes/emoji_{language}.json") as path:
+    emoji.EMOJI_DATA = path
+
+import time
+
 import logging
 
 from dataclasses import dataclass
 
+'''
+Will be used later...
+'''
 @dataclass
 class XAuthorContainer:
    platform:            str

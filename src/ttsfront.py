@@ -30,7 +30,6 @@ LOG_LEVELS_LIST_TEXT = '''Log levels:
 * 50 = CRITICAL'''
 
 home = os.path.expanduser("~")
-
 CONFIG_SEARCH_ORDER = [
     "./config.ini",
     "./custom/config.ini",

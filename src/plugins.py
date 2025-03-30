@@ -11,12 +11,12 @@ class PluginManager:
     '''
     Class to manage plugins
     '''
-    def __init__(self, plugin_dir="plugins", base_dir=os.path.abspath(__file__), signal=None, config=None, logger=None):
+    def __init__(self, plugin_dir, base_dir=os.path.abspath(__file__), signal=None, config=None, logger=None):
         # Directory the program is installed in
         self.install_dir = base_dir  
 
         # Directory to load plugins from
-        self.plugin_dir = os.path.join(self.install_dir, plugin_dir)
+        self.plugin_dir = plugin_dir
 
         # To hold plugins, key is the name of the plugin, value is the object
         self.plugins = {}
@@ -48,6 +48,7 @@ class PluginManager:
 
         self.logger = logger
 
+        self.logger.info(f"Plugin directory path is: {plugin_dir}")
         self.logger.info(f"concurent.futures has spawned a {self.use_threads}-based executor with {self.max_workers} workers.")
 
     def is_plugin_enabled(self, plugin_name):
@@ -78,14 +79,33 @@ class PluginManager:
         '''
         Load all valid plugins from the plugin directory
         '''
+        self.logger.info("START: Loading plugins...")
+        if not os.path.exists(self.plugin_dir):
+            self.logger.error("END: Plugin directory path does not exist?")
+            return
+        
         if not os.path.isdir(self.plugin_dir):
+            self.logger.error("END: Plugin directory path is not a directory?")
             return
         
         # Loop through all the plugins
-        for filename in os.listdir(self.plugin_dir):
-            if self.should_load_plugin(filename):  # If we should load it
-                # Load the plugin
-                self.load_plugin(filename)
+        plugin_dirs = []
+        for directory in os.listdir(self.plugin_dir):
+            path = os.path.join(self.plugin_dir, directory)
+            self.logger.info(f"Searching for dirs... {directory}, {path}")
+
+            if path.find("__pycache__") == -1:
+                plugin_dirs.append(path)
+        
+        self.logger.info(f"Directories to search: {plugin_dirs}")
+        for path in plugin_dirs:
+            if path.find("__pycache__") != -1:
+                self.logger.info(f"Skipping {path}...")
+                continue
+
+            self.logger.info(f"Scanning {path}...")
+            self.load_plugin(path)
+            self.logger.info(f"{path} is loaded")
 
     def is_plugin_valid(self, obj):
         '''
@@ -101,7 +121,7 @@ class PluginManager:
         Required to manage blame.
         Runs when a given plugin is done executing
         '''
-        self.logger.debug(f"END: Call to plugin {name} complete")
+        self.logger.debug(f"END: Call to plugin {name} complete (future {future}, {id(future)})")
         self.plugin_blame[name] -= 1
         self.logger.debug(f"{name}'s blame is {self.plugin_blame[name]} (max {self.max_blame})")
     
@@ -141,7 +161,7 @@ class PluginManager:
         # Get the number of threads, warn the user if there are too many
         num_threads = len(self.executor._threads)
         if num_threads == self.max_workers:
-            self.logger.warning(f"There are too many threads running ({num_threads}/{self.max_workers})! Tasks will be queued, events may arrive to plugins late! You should adjust `max_threads`")
+            self.logger.warning(f"There are too many threads running ({num_threads}/{self.max_workers})! Tasks will be queued.")
         
         # Get the plugin's blame, if it's blame is too high we execuete this
         if self.plugin_blame[plugin_name] >= self.max_blame:
@@ -169,25 +189,37 @@ class PluginManager:
         self.plugin_blame[plugin_name] += 1
         self.logger.debug(f"{plugin_name}'s blame is {self.plugin_blame[plugin_name]} (max {self.max_blame})")  # Debugging
 
-    def load_plugin(self, filename):
+    def load_plugin(self, path, filename=None, config=None):
         '''
         Load a given plugin from a filename
         '''
-        plugin_name = filename[:-3]  # Remove ".py" extension
-        json_path = f"{plugin_name}.json"  # Find the coresponding JSON
-        plugin_path = os.path.join(self.plugin_dir, filename)
+        self.logger.info(f"START: Load {filename}")
+
+        if filename is None:
+            filename = "main.py"
+
+        if config is None:
+            json_path = os.path.join(path, "config.json")
+
+        plugin_path = os.path.join(path, filename)
+        plugin_name = plugin_path
+
+        self.logger.info(f"path={plugin_path}, name={plugin_name}, json={json_path}")
         
         # Load the plugin's spec from the path
+        self.logger.info(f"Generating and loading spec for {filename}...")
         spec = importlib.util.spec_from_file_location(plugin_name, plugin_path)
 
         # Create a module from that spec
         plugin_module = importlib.util.module_from_spec(spec)
 
         # Load that module to create it's attributes
+        self.logger.info(f"Executing module {filename}...")
         spec.loader.exec_module(plugin_module)
         
         # Look at only the first member found
         members =  inspect.getmembers(plugin_module)
+
         # Initalize it's blame to 0
         self.plugin_blame[plugin_name] = 1
         self.blame_queues[plugin_name] = []
@@ -202,6 +234,7 @@ class PluginManager:
                     o.__file__ = plugin_path
                     o.__json__ = json_path
                     o.__signal__ = self.gui_signal
+                    self.logger.info(f"Loaded plugin name={o.__name__} file={o.__file__} json={o.__json__}")
 
                     # Add it to the plugins
                     self.plugins[plugin_name] = o
@@ -223,7 +256,7 @@ class PluginManager:
         name = plugin.__name__  # Get the plugin's name
 
         # Find the corresponding JSON file
-        file = os.path.join(self.plugin_dir, plugin.__json__)
+        file = plugin.__json__
 
         # Open the JSON and read the data
         with open(file, "r") as f:

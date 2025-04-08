@@ -103,6 +103,7 @@ class ChatWorker(QThread):
         self.config = config
 
         self.running = True  # Flag to keep the thread running
+        self.enablePlugins = config["Plugins"].getboolean("enable_plugins", False)
         self.installdir = config["Plugins.Paths"].get("installdir", None)
 
         self.logger = logging.getLogger("chatworker")
@@ -110,13 +111,15 @@ class ChatWorker(QThread):
         pluginmgr_logger = logging.getLogger("pluginmgr")
         pluginmgr_logger.setLevel(logging.INFO)
 
-        self.plugin_manager = plugins.PluginManager(
-            plugin_dir=config["Plugins.Paths"]["plugindir"],
-            base_dir=self.installdir if self.installdir is not None else os.path.dirname(__file__),
-            signal=self.msg_signal,
-            config=self.config,
-            logger=pluginmgr_logger
-        )
+        if self.enablePlugins:
+            self.plugin_manager = plugins.PluginManager(
+                plugin_dir=config["Plugins.Paths"]["plugindir"],
+                base_dir=self.installdir if self.installdir is not None else os.path.dirname(__file__),
+                signal=self.msg_signal,
+                config=self.config,
+                logger=pluginmgr_logger
+            )
+
         self.loop_wait = self.config["Backend"].getint("loop_wait_ns")
         self.pluginmain = self.config["Plugins"].getboolean("enable_pluginmain", False)
 
@@ -124,8 +127,10 @@ class ChatWorker(QThread):
 
     def startup(self):
         # Initalize all plugins
-        self.plugin_manager.load_plugins()
-        self.plugin_manager.configure_plugins()
+        if self.enablePlugins:
+            self.plugin_manager.load_plugins()
+            self.plugin_manager.configure_plugins()
+
         self.msg_signal.emit("[CHAT WORKER | INFO] Dave From Seattle is READY!")
 
     def plugins_main(self):

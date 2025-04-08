@@ -1,6 +1,5 @@
 from pluginsdk import PluginInterface
 import pyttsx3
-import time
 
 class TTSplugin(PluginInterface):
     def speak(self, text):

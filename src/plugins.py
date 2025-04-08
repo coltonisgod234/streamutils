@@ -32,7 +32,7 @@ class PluginManager:
         self.exec_type = self.config["Plugins"].get("execution_type", "process")
 
         # Execute plugins in paralel
-        self.executor = cf.ProcessPoolExecutor(max_workers=self.max_workers)
+        self.executor = cf.ThreadPoolExecutor(max_workers=self.max_workers)
 
         self.logger = logger
 
@@ -108,9 +108,9 @@ class PluginManager:
         '''
         Run a given function from a plugin (if pluginmgr exists)
         '''
-        self.logger.info(f"START: Calling plugin function call: {plugin_name}.{function_name} {args}...")
+        self.logger.debug(f"START: Calling plugin function call: {plugin_name}.{function_name} {args}...")
         if hasattr(self, "plugin_manager"):  # Check if it exists
-            self.logger.info(f"END: No active plugin manager, call ignored.")
+            self.logger.debug(f"END: No active plugin manager, call ignored.")
             return
 
         # Ensure the executor is still alive and hasn't terminated
@@ -146,7 +146,7 @@ class PluginManager:
         )
 
         # Don't do anything with the future right now.
-        self.logger.info("Call done")
+        self.logger.debug("Call done")
 
     def load_plugin(self, path, filename=None, config=None, venv_path=None):
         '''
@@ -252,6 +252,7 @@ class PluginManager:
             except Exception as e:
                 self.logger.error(f"While shutting down plugin {name}: event_kill method caused an exception ({e}); Skipping shutdown")
 
+        # This can leave zombie processes. 
         self.executor.shutdown()
         self.executor = None  # Mark it as "deleted"
 
